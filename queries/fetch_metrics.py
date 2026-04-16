@@ -72,6 +72,7 @@ SELECT
   SUM(total_volume) / 1e9          AS total_dex_volume_bn
 FROM `cs-host-1e442ec0baa34148b93f88.historical_volumes.daily_perps_volume`
 WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL {LOOKBACK_WEEKS} WEEK)
+  AND date < DATE_TRUNC(CURRENT_DATE(), WEEK(MONDAY))
 GROUP BY 1
 ORDER BY 1
 """
@@ -81,7 +82,7 @@ SQL_DYDX_VOLUME = f"""
 -- Source: dydx-ce5e3.numia.fills
 -- Note: each fill records one side; use ABS to avoid double-counting if needed
 SELECT
-  DATE_TRUNC(block_timestamp, WEEK(MONDAY))   AS week_start,
+  CAST(DATE_TRUNC(block_timestamp, WEEK(MONDAY)) AS DATE)   AS week_start,
   SUM(size * price) / 1e9                     AS dydx_volume_bn
 FROM `dydx-ce5e3.numia.fills`
 WHERE block_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {LOOKBACK_WEEKS * 7} DAY)
@@ -92,7 +93,7 @@ ORDER BY 1
 
 SQL_FEES = f"""
 SELECT
-  DATE_TRUNC(block_timestamp, WEEK(MONDAY))                                          AS week_start,
+  CAST(DATE_TRUNC(block_timestamp, WEEK(MONDAY)) AS DATE)                            AS week_start,
   SUM(taker_order_fee_quote_quantums) / 1e6                                          AS gross_fees_usd,
   (SUM(taker_order_fee_quote_quantums)
     + SUM(COALESCE(maker_order_fee_quote_quantums, 0))) / 1e6                        AS net_fees_usd
