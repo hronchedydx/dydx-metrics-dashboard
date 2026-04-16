@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dYdX Metrics Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg:          #08090d;
+      --card:        #0f1117;
+      --border:      #1c1f2e;
+      --border2:     #252840;
+      --purple:      #6c63ff;
+      --purple-dim:  rgba(108,99,255,.14);
+      --teal:        #00d4aa;
+      --teal-dim:    rgba(0,212,170,.12);
+      --orange:      #f59e0b;
+      --orange-dim:  rgba(245,158,11,.12);
+      --text:        #e2e4f0;
+      --muted:       #5c6080;
+      --muted2:      #383b55;
+      --green:       #22c55e;
+      --red:         #ef4444;
+      --r:           10px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    /* ── HEADER ──────────────────────────────── */
+    .hdr {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      height: 54px;
+      padding: 0 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 200;
+    }
+
+    .hdr-left  { display: flex; align-items: center; gap: 0; }
+
+    .logo-svg  { width: 30px; height: 30px; margin-right: 9px; }
+
+    .logo-name {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--purple);
+      letter-spacing: -.4px;
+      margin-right: 10px;
+    }
+
+    .hdr-sep   { width: 1px; height: 18px; background: var(--border2); margin-right: 10px; }
+
+    .hdr-title {
+      font-size: 12.5px;
+      font-weight: 500;
+      color: var(--muted);
+    }
+
+    .hdr-right { display: flex; align-items: center; gap: 10px; }
+
+    .badge {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+      padding: 3px 9px;
+      border-radius: 20px;
+      background: var(--purple-dim);
+      color: var(--purple);
+      border: 1px solid rgba(108,99,255,.25);
+    }
+
+    .hdr-meta  { font-size: 11px; color: var(--muted); }
+
+    /* ── STATES ──────────────────────────────── */
+    .state {
+      min-height: 70vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      color: var(--muted);
+    }
+
+    .spinner {
+      width: 34px; height: 34px;
+      border: 3px solid var(--border2);
+      border-top-color: var(--purple);
+      border-radius: 50%;
+      animation: spin .75s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .state-msg  { font-size: 13px; }
+    .state-sub  { font-size: 11px; color: var(--muted2); max-width: 380px; text-align: center; }
+    .err-icon   { font-size: 28px; }
+    .err-detail { font-size: 11px; color: var(--red); max-width: 440px; text-align: center; }
+
+    /* ── DATA SOURCE BANNER ──────────────────── */
+    .src-banner {
+      background: rgba(108,99,255,.06);
+      border-bottom: 1px solid var(--border);
+      padding: 7px 28px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      font-size: 11px;
+      flex-wrap: wrap;
+    }
+
+    .src-item { display: flex; align-items: center; gap: 5px; color: var(--muted); }
+
+    .src-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .src-dot.live    { background: var(--green); box-shadow: 0 0 5px var(--green); }
+    .src-dot.weekly  { background: var(--purple); }
+    .src-dot.pending { background: var(--muted2); }
+
+    /* ── MAIN ────────────────────────────────── */
+    .main {
+      padding: 22px 28px 44px;
+      max-width: 1560px;
+      margin: 0 auto;
+    }
+
+    /* ── KPI STRIP ───────────────────────────── */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 1200px) { .kpi-row { grid-template-columns: repeat(4, 1fr); } }
+    @media (max-width: 700px)  { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
+
+    .kpi {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 12px 14px 10px;
+    }
+
+    .kpi-lbl {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: .4px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .kpi-val {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -.4px;
+      line-height: 1;
+      margin-bottom: 5px;
+    }
+
+    .kpi-chg {
+      font-size: 11px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .kpi-chg.up      { color: var(--green); }
+    .kpi-chg.dn      { color: var(--red); }
+    .kpi-chg.neu     { color: var(--muted); }
+    .kpi-chg-lbl     { font-size: 10px; color: var(--muted); font-weight: 400; }
+
+    /* ── SECTION HEADERS ─────────────────────── */
+    .sec-hdr {
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: 1.1px;
+      text-transform: uppercase;
+      color: var(--muted2);
+      margin: 20px 0 8px;
+    }
+
+    /* ── CHART GRID ──────────────────────────── */
+    .row { display: grid; gap: 10px; margin-bottom: 10px; }
+    .row.c1 { grid-template-columns: 1fr; }
+    .row.c2 { grid-template-columns: 1fr 1fr; }
+    .row.c3 { grid-template-columns: 1fr 1fr 1fr; }
+    .row.c31 { grid-template-columns: 1.6fr 1fr; }
+
+    @media (max-width: 900px) {
+      .row.c2, .row.c3, .row.c31 { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 16px 18px 12px;
+    }
+
+    .card-hdr {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .card-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+    .card-sub   { font-size: 11px; color: var(--muted); }
+
+    .card-tags  { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; margin-left: 10px; }
+
+    .tag {
+      font-size: 9px;
+      font-weight: 500;
+      padding: 2px 7px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    .tag.purple { background: var(--purple-dim); color: var(--purple); border: 1px solid rgba(108,99,255,.2); }
+    .tag.teal   { background: var(--teal-dim); color: var(--teal); border: 1px solid rgba(0,212,170,.2); }
+    .tag.src    { background: rgba(255,255,255,.04); color: var(--muted); border: 1px solid var(--border); }
+
+    .chart-wrap        { position: relative; }
+    .chart-wrap.xl     { height: 300px; }
+    .chart-wrap.lg     { height: 240px; }
+    .chart-wrap.md     { height: 210px; }
+
+    /* Projection legend */
+    .proj-legend {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    .proj-line {
+      width: 24px;
+      height: 2px;
+      background: repeating-linear-gradient(
+        to right,
+        var(--muted) 0, var(--muted) 4px,
+        transparent 4px, transparent 8px
+      );
+    }
+
+    /* ── FOOTER ──────────────────────────────── */
+    .footer {
+      max-width: 1560px;
+      margin: 0 auto;
+      padding: 18px 28px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--muted);
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .footer a { color: var(--purple); text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+
+    .footer-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+    .fpill {
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════ HEADER -->
+<header class="hdr">
+  <div class="hdr-left">
+    <svg class="logo-svg" viewBox="0 0 30 30" fill="none">
+      <rect width="30" height="30" rx="6" fill="rgba(108,99,255,.14)"/>
+      <path d="M15 4L26 10.5V19.5L15 26L4 19.5V10.5L15 4Z"
+            stroke="#6c63ff" stroke-width="1.5" fill="none"/>
+      <path d="M15 4V15M15 26V15M4 10.5L15 15M26 10.5L15 15M4 19.5L15 15M26 19.5L15 15"
+            stroke="#6c63ff" stroke-width="1" opacity=".4"/>
+    </svg>
+    <span class="logo-name">dYdX</span>
+    <div class="hdr-sep"></div>
+    <span class="hdr-title">Performance Metrics</span>
+  </div>
+  <div class="hdr-right">
+    <span class="badge">Weekly</span>
+    <span class="hdr-meta" id="hdrMeta">Loading…</span>
+  </div>
+</header>
+
+<!-- ════════════════════ LOADING -->
+<div id="stateLoad" class="state">
+  <div class="spinner"></div>
+  <span class="state-msg">Fetching latest data…</span>
+  <span class="state-sub" id="loadDetail">Connecting to data sources</span>
+</div>
+
+<!-- ════════════════════ ERROR -->
+<div id="stateErr" class="state" style="display:none">
+  <span class="err-icon">⚠</span>
+  <span class="state-msg">Could not load dashboard data</span>
+  <span class="err-detail" id="errDetail"></span>
+  <span class="state-sub">
+    Run <code>python queries/fetch_metrics.py</code> to regenerate
+    <code>data/metrics.json</code>, then reload.
+  </span>
+</div>
+
+<!-- ════════════════════ DASHBOARD -->
+<div id="dash" style="display:none">
+
+  <!-- Data source banner -->
+  <div class="src-banner">
+    <div class="src-item">
+      <div class="src-dot live"></div>
+      <span><strong>DeFiLlama</strong> — total perp DEX market (live, fetched on load)</span>
+    </div>
+    <div class="src-item">
+      <div class="src-dot weekly"></div>
+      <span><strong>BigQuery / Numia</strong> — dYdX volume, fees, staking (refreshed weekly via GitHub Actions)</span>
+    </div>
+    <div class="src-item">
+      <div class="src-dot" id="llamaDot" style="background:var(--muted2)"></div>
+      <span id="llamaStatus">DeFiLlama: pending</span>
+    </div>
+  </div>
+
+  <main class="main">
+
+    <!-- ── KPI STRIP ── -->
+    <div class="kpi-row">
+      <div class="kpi">
+        <div class="kpi-lbl">dYdX Market Share</div>
+        <div class="kpi-val" id="kShare">—</div>
+        <div class="kpi-chg" id="kShareChg">—</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">dYdX Weekly Volume</div>
+        <div class="kpi-val" id="kVol">—</div>
+        <div class="kpi-chg" id="kVolChg">—</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">Total DEX Market</div>
+        <div class="kpi-val" id="kMkt">—</div>
+        <div class="kpi-chg" id="kMktChg">—</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">Weekly Gross Fees</div>
+        <div class="kpi-val" id="kGross">—</div>
+        <div class="kpi-chg" id="kGrossChg">—</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">Weekly Net Fees</div>
+        <div class="kpi-val" id="kNet">—</div>
+        <div class="kpi-chg" id="kNetChg">—</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">Token Holders</div>
+        <div class="kpi-val" id="kHolders">—</div>
+        <div class="kpi-chg" id="kHoldersChg">—</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">Staked DYDX</div>
+        <div class="kpi-val" id="kStaked">—</div>
+        <div class="kpi-chg" id="kStakedChg">—</div>
+      </div>
+    </div>
+
+    <!-- ── MARKET SHARE ── -->
+    <div class="sec-hdr">Market Share</div>
+    <div class="row c1">
+      <div class="card">
+        <div class="card-hdr">
+          <div>
+            <div class="card-title">Total Perp DEX Market Volume vs dYdX — Market Share %</div>
+            <div class="card-sub">Weekly notional (USD billions) · dYdX share % on right axis · dashed = 6-week projection</div>
+          </div>
+          <div class="card-tags">
+            <span class="tag purple">52 weeks + projection</span>
+            <span class="tag teal">DeFiLlama (live) + BigQuery</span>
+          </div>
+        </div>
+        <div class="chart-wrap xl"><canvas id="cMkt"></canvas></div>
+        <div class="proj-legend"><div class="proj-line"></div> 6-week linear trend projection</div>
+      </div>
+    </div>
+
+    <!-- ── VOLUME & FEES ── -->
+    <div class="sec-hdr">Volume &amp; Fees</div>
+    <div class="row c2">
+      <div class="card">
+        <div class="card-hdr">
+          <div>
+            <div class="card-title">dYdX Weekly Volume</div>
+            <div class="card-sub">Notional trading volume (USD billions)</div>
+          </div>
+          <div class="card-tags">
+            <span class="tag src">numia.fills</span>
+          </div>
+        </div>
+        <div class="chart-wrap lg"><canvas id="cVol"></canvas></div>
+        <div class="proj-legend"><div class="proj-line"></div> 6-week projection</div>
+      </div>
+      <div class="card">
+        <div class="card-hdr">
+          <div>
+            <div class="card-title">Weekly Trading Fees — Gross vs Net</div>
+            <div class="card-sub">Gross = taker fees · Net = after maker rebates (USD millions)</div>
+          </div>
+          <div class="card-tags">
+            <span class="tag src">dydx_mainnet.dydx_match</span>
+          </div>
+        </div>
+        <div class="chart-wrap lg"><canvas id="cFees"></canvas></div>
+        <div class="proj-legend"><div class="proj-line"></div> 6-week projection</div>
+      </div>
+    </div>
+
+    <!-- ── TOKEN & STAKING ── -->
+    <div class="sec-hdr">Token &amp; Staking</div>
+    <div class="row c3">
+      <div class="card">
+        <div class="card-hdr">
+          <div>
+            <div class="card-title">DYDX Token Holders</div>
+            <div class="card-sub">Unique addresses holding DYDX</div>
+          </div>
+          <div class="card-tags">
+            <span class="tag src">token_holder_snapshots</span>
+          </div>
+        </div>
+        <div class="chart-wrap md"><canvas id="cHolders"></canvas></div>
+        <div class="proj-legend"><div class="proj-line"></div> projection</div>
+      </div>
+      <div class="card">
+        <div class="card-hdr">
+          <div>
+            <div class="card-title">Staked DYDX Tokens</div>
+            <div class="card-sub">Total DYDX staked with validators (millions)</div>
+          </div>
+          <div class="card-tags">
+            <span class="tag src">dydx_validators</span>
+          </div>
+        </div>
+        <div class="chart-wrap md"><canvas id="cStaked"></canvas></div>
+        <div class="proj-legend"><div class="proj-line"></div> projection</div>
+      </div>
+      <div class="card">
+        <div class="card-hdr">
+          <div>
+            <div class="card-title">Active DYDX Stakers</div>
+            <div class="card-sub">Unique delegators with tokens &gt; 0 per week</div>
+          </div>
+          <div class="card-tags">
+            <span class="tag src">staked_snapshots</span>
+          </div>
+        </div>
+        <div class="chart-wrap md"><canvas id="cStakers"></canvas></div>
+        <div class="proj-legend"><div class="proj-line"></div> projection</div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="footer">
+    <span>dYdX Foundation · Performance Metrics Dashboard</span>
+    <div class="footer-pills">
+      <span class="fpill">DeFiLlama (live)</span>
+      <span class="fpill">Numia BigQuery</span>
+      <span class="fpill">Refreshed weekly via GitHub Actions</span>
+      <a href="https://app.mode.com/dydx_eng/reports/00ae1dcf3650" target="_blank">Original Mode report →</a>
+    </div>
+  </footer>
+
+</div><!-- /#dash -->
+
+<script>
+// ════════════════════════════════════════════════════════════
+// UTILITIES
+// ════════════════════════════════════════════════════════════
+
+/** Simple linear regression. Returns {slope, intercept} */
+function linReg(arr) {
+  const y = arr.filter(v => v != null);
+  const n = y.length;
+  if (n < 2) return { slope: 0, intercept: y[0] ?? 0 };
+  const xs = Array.from({ length: n }, (_, i) => i);
+  const mx = xs.reduce((a, b) => a + b) / n;
+  const my = y.reduce((a, b) => a + b) / n;
+  const slope = xs.reduce((s, x, i) => s + (x - mx) * (y[i] - my), 0)
+              / xs.reduce((s, x) => s + (x - mx) ** 2, 0);
+  const intercept = my - slope * mx;
+  return { slope, intercept };
+}
+
+/** Project `fwd` weeks forward from the last `window` actual data points. */
+function project(series, fwd = 6, window = 16) {
+  const recent = series.slice(-window).filter(v => v != null);
+  const { slope, intercept } = linReg(recent);
+  const n = recent.length;
+  return Array.from({ length: fwd }, (_, i) =>
+    Math.max(0, +(intercept + slope * (n + i)).toFixed(4))
+  );
+}
+
+/** Aggregate array of DeFiLlama [timestamp, volume] pairs into Monday-keyed weekly buckets */
+function dailyToWeekly(dataChart) {
+  const map = new Map();
+  for (const [ts, vol] of dataChart) {
+    const d = new Date(ts * 1000);
+    // Move to Monday of the same week
+    const day = d.getUTCDay(); // 0=Sun
+    const diff = day === 0 ? -6 : 1 - day;
+    const mon = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + diff));
+    const key = mon.toISOString().slice(0, 10);
+    map.set(key, (map.get(key) ?? 0) + vol / 1e9);  // → billions
+  }
+  return map;  // Map<"YYYY-MM-DD", volumeInBn>
+}
+
+/** Format a date string "YYYY-MM-DD" as "Apr 14" */
+function fmtDate(iso) {
+  return new Date(iso + 'T00:00:00Z').toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', timeZone: 'UTC'
+  });
+}
+
+/** Set a KPI card value */
+function setV(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text ?? '—';
+}
+
+/** Set a KPI change badge */
+function setChg(id, pct, suffix = '%', label = 'vs prev week') {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (pct == null) { el.textContent = '—'; el.className = 'kpi-chg neu'; return; }
+  const abs = Math.abs(+pct).toFixed(suffix === 'pp' ? 2 : 1);
+  const up = pct >= 0;
+  el.className = `kpi-chg ${up ? 'up' : 'dn'}`;
+  el.innerHTML = `${up ? '▲' : '▼'} ${abs}${suffix} <span class="kpi-chg-lbl">${label}</span>`;
+}
+
+// ════════════════════════════════════════════════════════════
+// CHART.JS GLOBAL DEFAULTS
+// ════════════════════════════════════════════════════════════
+Chart.defaults.color = '#5c6080';
+Chart.defaults.borderColor = '#1c1f2e';
+Chart.defaults.font.family = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
+Chart.defaults.font.size = 11;
+
+const GRID = 'rgba(255,255,255,0.04)';
+
+const TT = {
+  backgroundColor: '#181b27',
+  titleColor: '#e2e4f0',
+  bodyColor: '#8287a8',
+  borderColor: '#252840',
+  borderWidth: 1,
+  padding: 10,
+  cornerRadius: 8,
+  usePointStyle: true,
+  boxWidth: 8,
+  boxHeight: 8,
+};
+
+const LG = {
+  labels: {
+    color: '#7a7e9e', boxWidth: 9, boxHeight: 9,
+    padding: 14, usePointStyle: true
+  }
+};
+
+const XS = () => ({
+  grid: { color: GRID, drawBorder: false },
+  ticks: { color: '#454869', maxTicksLimit: 13, maxRotation: 0 }
+});
+
+const YS = (fmt, extra = {}) => ({
+  grid: { color: GRID, drawBorder: false },
+  ticks: { color: '#454869', callback: fmt },
+  ...extra
+});
+
+/** Gradient fill factory (for line charts) */
+function makeGrad(ctx, chartArea, hexColor, alpha0 = '44', alpha1 = '00') {
+  const g = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+  g.addColorStop(0, hexColor + alpha0);
+  g.addColorStop(1, hexColor + alpha1);
+  return g;
+}
+
+// ════════════════════════════════════════════════════════════
+// CHART BUILDERS
+// ════════════════════════════════════════════════════════════
+
+/**
+ * Stacked bar (total DEX = other + dYdX) + dYdX market share line.
+ * Projection is appended as dashed extension datasets.
+ */
+function buildMktChart(labels, projLabels, totalDex, dydxVol, otherDex, share,
+                       projShare, projDydx, projOther) {
+
+  const allLabels = [...labels, ...projLabels];
+
+  // Pad historical data with nulls for projection period
+  const pad = n => arr => [...arr, ...Array(n).fill(null)];
+  const P = projLabels.length;
+
+  new Chart(document.getElementById('cMkt'), {
+    type: 'bar',
+    data: {
+      labels: allLabels,
+      datasets: [
+        {
+          label: 'Other DEX Vol.',
+          data: pad(P)(otherDex),
+          backgroundColor: 'rgba(72,76,104,.45)',
+          borderSkipped: 'bottom',
+          stack: 'v', order: 3,
+        },
+        {
+          label: 'dYdX Vol.',
+          data: pad(P)(dydxVol),
+          backgroundColor: 'rgba(108,99,255,.72)',
+          borderSkipped: 'bottom',
+          stack: 'v', order: 2,
+        },
+        // Projection bars (dYdX + other, lighter)
+        {
+          label: 'dYdX Vol. (proj.)',
+          data: [...Array(labels.length).fill(null), ...projDydx],
+          backgroundColor: 'rgba(108,99,255,.28)',
+          borderSkipped: 'bottom',
+          stack: 'v', order: 2,
+        },
+        {
+          label: 'Other DEX Vol. (proj.)',
+          data: [...Array(labels.length).fill(null), ...projOther],
+          backgroundColor: 'rgba(72,76,104,.2)',
+          borderSkipped: 'bottom',
+          stack: 'v', order: 3,
+        },
+        // Market share line
+        {
+          label: 'Market Share %',
+          data: [...pad(P)(share)],
+          type: 'line', yAxisID: 'yR',
+          borderColor: '#00d4aa',
+          backgroundColor: 'transparent',
+          borderWidth: 2, pointRadius: 0, pointHoverRadius: 4,
+          tension: 0.35, fill: false, order: 1,
+        },
+        // Projected share (dashed)
+        {
+          label: 'Market Share % (proj.)',
+          data: [...Array(labels.length - 1).fill(null), share.at(-1), ...projShare],
+          type: 'line', yAxisID: 'yR',
+          borderColor: '#00d4aa',
+          backgroundColor: 'transparent',
+          borderWidth: 1.5,
+          borderDash: [5, 4],
+          pointRadius: 0, pointHoverRadius: 4,
+          tension: 0.35, fill: false, order: 1,
+        },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: LG,
+        tooltip: {
+          ...TT,
+          filter: ctx => !ctx.dataset.label.includes('proj.') || ctx.raw != null,
+          callbacks: {
+            label(ctx) {
+              const v = ctx.raw;
+              if (v == null) return null;
+              if (ctx.dataset.yAxisID === 'yR') return `  ${ctx.dataset.label}: ${(+v).toFixed(2)}%`;
+              return `  ${ctx.dataset.label}: $${(+v).toFixed(1)}B`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ...XS(), stacked: true },
+        y: { ...YS(v => `$${v}B`), stacked: true },
+        yR: {
+          position: 'right',
+          grid: { drawOnChartArea: false },
+          ticks: { color: '#00d4aa', callback: v => `${v}%` },
+        }
+      }
+    }
+  });
+}
+
+/**
+ * Bar chart with dashed trend extension.
+ * `color` is a CSS hex like "#6c63ff".
+ */
+function buildBarTrend(canvasId, label, data, labels, projData, projLabels, color, yFmt, ttFmt) {
+  const P = projLabels.length;
+  const pad = [...data, ...Array(P).fill(null)];
+  const ext = [...Array(data.length - 1).fill(null), data.at(-1), ...projData];
+  const allLabels = [...labels, ...projLabels];
+
+  new Chart(document.getElementById(canvasId), {
+    type: 'bar',
+    data: {
+      labels: allLabels,
+      datasets: [
+        {
+          label,
+          data: pad,
+          backgroundColor: color + 'b3',
+          borderSkipped: 'bottom',
+        },
+        {
+          label: label + ' (proj.)',
+          data: ext,
+          type: 'line',
+          borderColor: color,
+          backgroundColor: 'transparent',
+          borderWidth: 1.5,
+          borderDash: [5, 4],
+          pointRadius: 0, pointHoverRadius: 4,
+          tension: 0.3, fill: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          ...TT,
+          callbacks: {
+            label(ctx) {
+              if (ctx.raw == null) return null;
+              return `  ${ctx.dataset.label}: ${ttFmt(ctx.raw)}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: XS(),
+        y: YS(yFmt),
+      }
+    }
+  });
+}
+
+/** Grouped bar (gross + net) with projection lines */
+function buildFeesChart(labels, projLabels, gross, net, projGross, projNet) {
+  const P = projLabels.length;
+  const allLabels = [...labels, ...projLabels];
+
+  new Chart(document.getElementById('cFees'), {
+    type: 'bar',
+    data: {
+      labels: allLabels,
+      datasets: [
+        {
+          label: 'Gross Fees',
+          data: [...gross, ...Array(P).fill(null)],
+          backgroundColor: 'rgba(245,158,11,.65)',
+          borderSkipped: 'bottom',
+        },
+        {
+          label: 'Net Fees',
+          data: [...net, ...Array(P).fill(null)],
+          backgroundColor: 'rgba(0,212,170,.65)',
+          borderSkipped: 'bottom',
+        },
+        {
+          label: 'Gross (proj.)',
+          data: [...Array(gross.length - 1).fill(null), gross.at(-1), ...projGross],
+          type: 'line', borderColor: '#f59e0b', backgroundColor: 'transparent',
+          borderWidth: 1.5, borderDash: [5, 4], pointRadius: 0, tension: 0.3, fill: false,
+        },
+        {
+          label: 'Net (proj.)',
+          data: [...Array(net.length - 1).fill(null), net.at(-1), ...projNet],
+          type: 'line', borderColor: '#00d4aa', backgroundColor: 'transparent',
+          borderWidth: 1.5, borderDash: [5, 4], pointRadius: 0, tension: 0.3, fill: false,
+        },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: LG,
+        tooltip: {
+          ...TT,
+          callbacks: {
+            label(ctx) {
+              if (ctx.raw == null) return null;
+              return `  ${ctx.dataset.label}: $${(+ctx.raw).toFixed(3)}M`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: XS(),
+        y: YS(v => `$${v}M`)
+      }
+    }
+  });
+}
+
+/** Gradient area line chart with dashed trend projection */
+function buildLineTrend(canvasId, label, data, labels, projData, projLabels, hex, yFmt, ttFmt, yMin = null) {
+  const P = projLabels.length;
+  const allLabels = [...labels, ...projLabels];
+
+  const ctx = document.getElementById(canvasId).getContext('2d');
+
+  let gradCache = null;
+  const bgFn = (context) => {
+    const { chart } = context;
+    const { ctx: c, chartArea } = chart;
+    if (!chartArea) return hex + '22';
+    if (!gradCache) gradCache = makeGrad(c, chartArea, hex, '40', '02');
+    return gradCache;
+  };
+
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: allLabels,
+      datasets: [
+        {
+          label,
+          data: [...data, ...Array(P).fill(null)],
+          borderColor: hex,
+          backgroundColor: bgFn,
+          borderWidth: 2,
+          pointRadius: 0, pointHoverRadius: 4,
+          pointHoverBackgroundColor: hex,
+          tension: 0.4, fill: true,
+        },
+        {
+          label: label + ' (proj.)',
+          data: [...Array(data.length - 1).fill(null), data.at(-1), ...projData],
+          borderColor: hex,
+          backgroundColor: 'transparent',
+          borderWidth: 1.5,
+          borderDash: [5, 4],
+          pointRadius: 0, tension: 0.35, fill: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          ...TT,
+          callbacks: {
+            label(ctx) {
+              if (ctx.raw == null) return null;
+              return `  ${ctx.dataset.label}: ${ttFmt(ctx.raw)}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: XS(),
+        y: {
+          ...YS(yFmt),
+          ...(yMin != null ? { min: yMin } : {})
+        }
+      }
+    }
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// DEFILLAMA LIVE FETCH
+// ════════════════════════════════════════════════════════════
+
+async function fetchDefiLlama(spine) {
+  /**
+   * Attempt to load total perp DEX market volumes from DeFiLlama.
+   * Returns: { total: Map<"YYYY-MM-DD", bn>, dydx: Map<"YYYY-MM-DD", bn> }
+   * Returns null on failure (dashboard still works with BQ data only).
+   */
+  try {
+    document.getElementById('loadDetail').textContent = 'Fetching DeFiLlama market data…';
+
+    const [overviewRes, dydxRes] = await Promise.all([
+      fetch('https://api.llama.fi/overview/derivatives?excludeTotalDataChart=false', {cache: 'no-cache'}),
+      fetch('https://api.llama.fi/summary/derivatives/dYdX%20v4', {cache: 'no-cache'}),
+    ]);
+
+    if (!overviewRes.ok || !dydxRes.ok) throw new Error(`HTTP ${overviewRes.status}`);
+
+    const [overview, dydxSum] = await Promise.all([overviewRes.json(), dydxRes.json()]);
+
+    const total = dailyToWeekly(overview.totalDataChart ?? []);
+    const dydx  = dailyToWeekly(dydxSum.totalDataChart ?? []);
+
+    // Update DeFiLlama status dot
+    document.getElementById('llamaDot').style.background = '#22c55e';
+    document.getElementById('llamaDot').style.boxShadow = '0 0 5px #22c55e';
+    document.getElementById('llamaStatus').textContent = 'DeFiLlama: live ✓';
+
+    return { total, dydx };
+
+  } catch (err) {
+    console.warn('DeFiLlama fetch failed:', err.message);
+    document.getElementById('llamaDot').style.background = '#ef4444';
+    document.getElementById('llamaStatus').textContent = `DeFiLlama: unavailable (${err.message})`;
+    return null;
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// MERGE BigQuery + DeFiLlama
+// ════════════════════════════════════════════════════════════
+
+/**
+ * Where DeFiLlama returns a value for a week, prefer it over BQ
+ * (it's live; BQ is weekly-stale). Falls back to BQ silently.
+ */
+function merge(bqSeries, llamaMap, spine) {
+  return spine.map((w, i) => {
+    const ll = llamaMap?.get(w);
+    return ll != null ? +ll.toFixed(4) : bqSeries[i];
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// MAIN BOOTSTRAP
+// ════════════════════════════════════════════════════════════
+
+async function boot() {
+  try {
+    // 1. Load metrics.json (BigQuery-sourced weekly data)
+    document.getElementById('loadDetail').textContent = 'Loading metrics.json…';
+    const res = await fetch('data/metrics.json', { cache: 'no-cache' });
+    if (!res.ok) throw new Error(`metrics.json: HTTP ${res.status} — run fetch_metrics.py first`);
+    const d = await res.json();
+
+    const { weeks, series: s, kpi } = d;
+    const spine = weeks;
+
+    // 2. Fetch DeFiLlama in parallel (non-blocking)
+    const llama = await fetchDefiLlama(spine);
+
+    // 3. Merge live DeFiLlama data where available
+    const totalDex = merge(s.total_dex_volume_bn, llama?.total, spine);
+    const dydxVol  = merge(s.dydx_volume_bn,      llama?.dydx,  spine);
+    const otherDex = totalDex.map((t, i) =>
+      t != null && dydxVol[i] != null ? +Math.max(0, t - dydxVol[i]).toFixed(4) : null
+    );
+    const share = totalDex.map((t, i) =>
+      t && dydxVol[i] ? +(dydxVol[i] / t * 100).toFixed(4) : s.market_share_pct?.[i] ?? null
+    );
+
+    // 4. Projection labels (6 weeks)
+    const PROJ = 6;
+    const lastDate = new Date(spine.at(-1) + 'T00:00:00Z');
+    const projLabels = Array.from({ length: PROJ }, (_, i) => {
+      const d = new Date(lastDate);
+      d.setUTCDate(d.getUTCDate() + 7 * (i + 1));
+      return d.toISOString().slice(0, 10);
+    });
+
+    // 5. Compute projections
+    const pDydx   = project(dydxVol);
+    const pShare  = project(share);
+    const pOther  = project(otherDex);
+    const pGross  = project(s.gross_fees_usd);
+    const pNet    = project(s.net_fees_usd);
+    const pHold   = project(s.token_holders);
+    const pStaked = project(s.staked_dydx_m);
+    const pStk    = project(s.active_stakers);
+
+    // 6. Format labels for charts
+    const lbls     = spine.map(fmtDate);
+    const projLbls = projLabels.map(fmtDate);
+
+    // 7. Update header
+    const gen = new Date(d.generated_at);
+    const fmtGen = new Intl.DateTimeFormat('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC'
+    });
+    document.getElementById('hdrMeta').textContent =
+      `BQ data: ${fmtGen.format(gen)} · ${llama ? 'DeFiLlama: live' : 'DeFiLlama: offline'}`;
+
+    // 8. KPI cards
+    // Use live DeFiLlama for market share if available, else BQ kpi
+    const liveShare = share.at(-1);
+    const liveDydx  = dydxVol.at(-1);
+    const liveTotal = totalDex.at(-1);
+
+    setV('kShare', liveShare != null ? `${liveShare.toFixed(2)}%` : '—');
+    setChg('kShareChg', kpi.market_share_wow_pp, 'pp');
+
+    setV('kVol', liveDydx != null ? `$${liveDydx.toFixed(2)}B` : '—');
+    setChg('kVolChg', kpi.dydx_volume_wow_pct);
+
+    setV('kMkt', liveTotal != null ? `$${liveTotal.toFixed(1)}B` : '—');
+    setChg('kMktChg', kpi.total_dex_wow_pct);
+
+    setV('kGross', kpi.gross_fees_usd != null ? `$${kpi.gross_fees_usd.toFixed(2)}M` : '—');
+    setChg('kGrossChg', kpi.gross_fees_wow_pct);
+
+    setV('kNet', kpi.net_fees_usd != null ? `$${kpi.net_fees_usd.toFixed(2)}M` : '—');
+    setChg('kNetChg', kpi.net_fees_wow_pct);
+
+    setV('kHolders', kpi.token_holders != null ? (+kpi.token_holders).toLocaleString() : '—');
+    setChg('kHoldersChg', kpi.token_holders_wow_pct);
+
+    setV('kStaked', kpi.staked_dydx_m != null ? `${(+kpi.staked_dydx_m).toFixed(1)}M` : '—');
+    setChg('kStakedChg', kpi.staked_dydx_wow_pct);
+
+    // 9. Build charts
+    buildMktChart(lbls, projLbls, totalDex, dydxVol, otherDex, share, pShare, pDydx, pOther);
+
+    buildBarTrend('cVol', 'dYdX Volume', dydxVol, lbls, pDydx, projLbls,
+      '#6c63ff', v => `$${v}B`, v => `$${(+v).toFixed(2)}B`);
+
+    buildFeesChart(lbls, projLbls, s.gross_fees_usd, s.net_fees_usd, pGross, pNet);
+
+    buildLineTrend('cHolders', 'Token Holders', s.token_holders, lbls, pHold, projLbls,
+      '#6c63ff', v => (+v).toLocaleString(), v => (+v).toLocaleString());
+
+    buildLineTrend('cStaked', 'Staked DYDX', s.staked_dydx_m, lbls, pStaked, projLbls,
+      '#00d4aa', v => `${v}M`, v => `${(+v).toFixed(1)}M DYDX`, 100);
+
+    buildLineTrend('cStakers', 'Active Stakers', s.active_stakers, lbls, pStk, projLbls,
+      '#f59e0b', v => (+v).toLocaleString(), v => (+v).toLocaleString());
+
+    // 10. Show dashboard
+    document.getElementById('stateLoad').style.display = 'none';
+    document.getElementById('dash').style.display = 'block';
+
+  } catch (err) {
+    console.error('Dashboard boot error:', err);
+    document.getElementById('stateLoad').style.display = 'none';
+    document.getElementById('stateErr').style.display  = 'flex';
+    document.getElementById('errDetail').textContent   = err.message;
+  }
+}
+
+boot();
+</script>
+</body>
+</html>
