@@ -69,7 +69,7 @@ SQL_TOTAL_DEX_VOLUME = f"""
 -- Source: cs-host-1e442ec0baa34148b93f88.historical_volumes.daily_perps_volume
 SELECT
   DATE_TRUNC(date, WEEK(MONDAY))   AS week_start,
-  SUM(volume_usd) / 1e9            AS total_dex_volume_bn
+  SUM(total_volume) / 1e9          AS total_dex_volume_bn
 FROM `cs-host-1e442ec0baa34148b93f88.historical_volumes.daily_perps_volume`
 WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL {LOOKBACK_WEEKS} WEEK)
 GROUP BY 1
