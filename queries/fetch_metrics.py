@@ -91,14 +91,11 @@ ORDER BY 1
 """
 
 SQL_FEES = f"""
--- dYdX weekly gross and net trading fees
--- Gross = total taker_fee collected
--- Net   = taker_fee minus maker_rebate (what the protocol retains)
--- Source: numia-data.dydx_mainnet.dydx_match
 SELECT
-  DATE_TRUNC(block_timestamp, WEEK(MONDAY))     AS week_start,
-  SUM(taker_fee)  / 1e6                         AS gross_fees_usd,
-  SUM(taker_fee - COALESCE(maker_rebate, 0)) / 1e6 AS net_fees_usd
+  DATE_TRUNC(block_timestamp, WEEK(MONDAY))                                          AS week_start,
+  SUM(taker_order_fee_quote_quantums) / 1e6                                          AS gross_fees_usd,
+  (SUM(taker_order_fee_quote_quantums)
+    + SUM(COALESCE(maker_order_fee_quote_quantums, 0))) / 1e6                        AS net_fees_usd
 FROM `numia-data.dydx_mainnet.dydx_match`
 WHERE block_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {LOOKBACK_WEEKS * 7} DAY)
 GROUP BY 1
@@ -120,24 +117,21 @@ ORDER BY 1
 """
 
 SQL_STAKED_TOKENS = f"""
--- Total DYDX tokens staked per week (latest snapshot per validator per week)
--- Source: numia-data.dydx_mainnet.dydx_validators
 SELECT
-  week_start,
-  SUM(tokens) / 1e6   AS staked_dydx_m   -- millions of DYDX
+  CAST(DATE_TRUNC(snapshot_time, WEEK(MONDAY)) AS DATE)   AS week_start,
+  SUM(SAFE_CAST(tokens AS BIGNUMERIC)) / 1e24             AS staked_dydx_m
 FROM (
   SELECT
-    DATE_TRUNC(DATE(block_timestamp), WEEK(MONDAY))   AS week_start,
+    snapshot_time,
     operator_address,
     tokens,
     ROW_NUMBER() OVER (
-      PARTITION BY
-        DATE_TRUNC(DATE(block_timestamp), WEEK(MONDAY)),
-        operator_address
-      ORDER BY block_timestamp DESC
+      PARTITION BY DATE_TRUNC(snapshot_time, WEEK(MONDAY)), operator_address
+      ORDER BY snapshot_time DESC
     ) AS rn
   FROM `numia-data.dydx_mainnet.dydx_validators`
-  WHERE block_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {LOOKBACK_WEEKS * 7} DAY)
+  WHERE snapshot_time >= DATETIME_SUB(CURRENT_DATETIME(), INTERVAL {LOOKBACK_WEEKS * 7} DAY)
+    AND SAFE_CAST(tokens AS BIGNUMERIC) > 0
 )
 WHERE rn = 1
 GROUP BY 1
