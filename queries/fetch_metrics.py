@@ -54,7 +54,7 @@ def get_client() -> bigquery.Client:
         info = json.loads(raw)
         creds = service_account.Credentials.from_service_account_info(
             info,
-            scopes=["https://www.googleapis.com/auth/bigquery.readonly"],
+            scopes=["https://www.googleapis.com/auth/bigquery"],
         )
         return bigquery.Client(credentials=creds, project=info["project_id"])
     # Falls back to GOOGLE_APPLICATION_CREDENTIALS / Application Default Credentials
