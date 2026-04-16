@@ -118,20 +118,20 @@ ORDER BY 1
 
 SQL_STAKED_TOKENS = f"""
 SELECT
-  CAST(DATE_TRUNC(snapshot_time, WEEK(MONDAY)) AS DATE)   AS week_start,
-  SUM(SAFE_CAST(tokens AS BIGNUMERIC)) / 1e24             AS staked_dydx_m
+  CAST(DATE_TRUNC(TIMESTAMP(snapshot_time), WEEK(MONDAY)) AS DATE)  AS week_start,
+  SUM(CAST(tokens AS NUMERIC) / 1e18) / 1e6                         AS staked_dydx_m
 FROM (
   SELECT
     snapshot_time,
     operator_address,
     tokens,
     ROW_NUMBER() OVER (
-      PARTITION BY DATE_TRUNC(snapshot_time, WEEK(MONDAY)), operator_address
+      PARTITION BY DATE_TRUNC(TIMESTAMP(snapshot_time), WEEK(MONDAY)), operator_address
       ORDER BY snapshot_time DESC
     ) AS rn
   FROM `numia-data.dydx_mainnet.dydx_validators`
-  WHERE snapshot_time >= DATETIME_SUB(CURRENT_DATETIME(), INTERVAL {LOOKBACK_WEEKS * 7} DAY)
-    AND SAFE_CAST(tokens AS BIGNUMERIC) > 0
+  WHERE status = 'BOND_STATUS_BONDED'
+    AND snapshot_time >= DATETIME_SUB(CURRENT_DATETIME(), INTERVAL {LOOKBACK_WEEKS * 7} DAY)
 )
 WHERE rn = 1
 GROUP BY 1
