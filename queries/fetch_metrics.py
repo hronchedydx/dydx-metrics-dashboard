@@ -241,9 +241,9 @@ def load_token_holders_csv(csv_path: str, spine: list[str]) -> list[int | None]:
     weekly: dict[str, int] = {}
     try:
         with open(csv_path, newline="", encoding="utf-8") as f:
-            # Auto-detect delimiter (comma or tab)
+            # Auto-detect delimiter (comma or tab) from whole sample, not just header
             sample = f.read(2048); f.seek(0)
-            delimiter = "\t" if "\t" in sample.split("\n")[0] else ","
+            delimiter = "\t" if "\t" in sample else ","
             reader = csv.DictReader(f, delimiter=delimiter)
             for row in reader:
                 raw_date = row.get("date", "").strip()
