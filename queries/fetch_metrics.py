@@ -67,6 +67,7 @@ def get_client() -> bigquery.Client:
 SQL_TOTAL_DEX_VOLUME = f"""
 -- Total perpetual DEX market weekly volume (all venues combined)
 -- Source: cs-host-1e442ec0baa34148b93f88.historical_volumes.daily_perps_volume
+-- Excludes the current (partial) week so we don't get a misleading low number.
 SELECT
   DATE_TRUNC(date, WEEK(MONDAY))   AS week_start,
   SUM(total_volume) / 1e9          AS total_dex_volume_bn
@@ -80,25 +81,32 @@ ORDER BY 1
 SQL_DYDX_VOLUME = f"""
 -- dYdX weekly notional trading volume
 -- Source: dydx-ce5e3.numia.fills
--- Note: each fill records one side; use ABS to avoid double-counting if needed
+-- CAST ensures week_start is DATE (not TIMESTAMP) so it aligns with the spine.
 SELECT
   CAST(DATE_TRUNC(block_timestamp, WEEK(MONDAY)) AS DATE)   AS week_start,
-  SUM(size * price) / 1e9                     AS dydx_volume_bn
+  SUM(size * price) / 1e9                                   AS dydx_volume_bn
 FROM `dydx-ce5e3.numia.fills`
 WHERE block_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {LOOKBACK_WEEKS * 7} DAY)
+  AND block_timestamp < TIMESTAMP_TRUNC(CURRENT_TIMESTAMP(), WEEK(MONDAY))
   AND side = 'BUY'   -- count one side only to avoid double-counting
 GROUP BY 1
 ORDER BY 1
 """
 
 SQL_FEES = f"""
+-- dYdX weekly gross and net trading fees, in millions of USD.
+-- Columns are in quote quantums where 1 USDC = 1e6 quantums.
+-- Dividing by 1e12 converts quantums → millions of USD (÷1e6 for USDC, ÷1e6 for millions).
+-- Gross = taker fees collected; Net = taker + maker (maker_order_fee is negative when a rebate).
+-- Source: numia-data.dydx_mainnet.dydx_match
 SELECT
-  CAST(DATE_TRUNC(block_timestamp, WEEK(MONDAY)) AS DATE)                            AS week_start,
-  SUM(taker_order_fee_quote_quantums) / 1e6                                          AS gross_fees_usd,
+  CAST(DATE_TRUNC(block_timestamp, WEEK(MONDAY)) AS DATE)              AS week_start,
+  SUM(taker_order_fee_quote_quantums) / 1e12                           AS gross_fees_usd,
   (SUM(taker_order_fee_quote_quantums)
-    + SUM(COALESCE(maker_order_fee_quote_quantums, 0))) / 1e6                        AS net_fees_usd
+   + SUM(COALESCE(maker_order_fee_quote_quantums, 0))) / 1e12          AS net_fees_usd
 FROM `numia-data.dydx_mainnet.dydx_match`
 WHERE block_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {LOOKBACK_WEEKS * 7} DAY)
+  AND block_timestamp < TIMESTAMP_TRUNC(CURRENT_TIMESTAMP(), WEEK(MONDAY))
 GROUP BY 1
 ORDER BY 1
 """
@@ -118,16 +126,23 @@ ORDER BY 1
 """
 
 SQL_STAKED_TOKENS = f"""
+-- Total DYDX tokens staked per week (latest snapshot per bonded validator per week).
+-- Source: numia-data.dydx_mainnet.dydx_validators
+-- tokens column is a STRING in adydx units (1 DYDX = 1e18 adydx).
+-- Only BOND_STATUS_BONDED validators are counted (active set).
+-- Dividing by 1e18 converts adydx → DYDX; then /1e6 gives millions of DYDX.
 SELECT
-  CAST(DATE_TRUNC(TIMESTAMP(snapshot_time), WEEK(MONDAY)) AS DATE)  AS week_start,
-  SUM(CAST(tokens AS NUMERIC) / 1e18) / 1e6                         AS staked_dydx_m
+  CAST(DATE_TRUNC(TIMESTAMP(snapshot_time), WEEK(MONDAY)) AS DATE)   AS week_start,
+  SUM(CAST(tokens AS NUMERIC) / 1e18) / 1e6                          AS staked_dydx_m
 FROM (
   SELECT
     snapshot_time,
     operator_address,
     tokens,
     ROW_NUMBER() OVER (
-      PARTITION BY DATE_TRUNC(TIMESTAMP(snapshot_time), WEEK(MONDAY)), operator_address
+      PARTITION BY
+        DATE_TRUNC(TIMESTAMP(snapshot_time), WEEK(MONDAY)),
+        operator_address
       ORDER BY snapshot_time DESC
     ) AS rn
   FROM `numia-data.dydx_mainnet.dydx_validators`
