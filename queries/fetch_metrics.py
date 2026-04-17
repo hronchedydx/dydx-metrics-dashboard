@@ -83,14 +83,16 @@ ORDER BY 1
 SQL_DYDX_VOLUME = f"""
 -- dYdX weekly notional trading volume
 -- Source: dydx-ce5e3.numia.fills
--- CAST ensures week_start is DATE (not TIMESTAMP) so it aligns with the spine.
+-- Uses volume_usd column directly (matches Mode query approach).
+-- Divided by 2 because each trade is recorded for both the maker and taker side.
+-- DATE(block_timestamp, 'UTC') is explicit about timezone before WEEK(MONDAY)
+-- truncation — without this, implicit timezone conversion returns Sundays instead
+-- of Mondays as week_start, misaligning with the Python-generated spine.
 SELECT
-  CAST(DATE_TRUNC(block_timestamp, WEEK(MONDAY)) AS DATE)   AS week_start,
-  SUM(size * price) / 1e9                                   AS dydx_volume_bn
+  DATE_TRUNC(DATE(block_timestamp, 'UTC'), WEEK(MONDAY))   AS week_start,
+  SUM(volume_usd) / 2 / 1e9                                AS dydx_volume_bn
 FROM `dydx-ce5e3.numia.fills`
 WHERE block_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {LOOKBACK_WEEKS * 7} DAY)
-  AND block_timestamp < TIMESTAMP_TRUNC(CURRENT_TIMESTAMP(), WEEK(MONDAY))
-  AND side = 'BUY'   -- count one side only to avoid double-counting
 GROUP BY 1
 ORDER BY 1
 """
@@ -100,15 +102,15 @@ SQL_FEES = f"""
 -- Columns are in quote quantums where 1 USDC = 1e6 quantums.
 -- Dividing by 1e12 converts quantums → millions of USD (÷1e6 for USDC, ÷1e6 for millions).
 -- Gross = taker fees collected; Net = taker + maker (maker_order_fee is negative when a rebate).
+-- DATE(..., 'UTC') prevents implicit timezone shift that causes Sunday week_starts.
 -- Source: numia-data.dydx_mainnet.dydx_match
 SELECT
-  CAST(DATE_TRUNC(block_timestamp, WEEK(MONDAY)) AS DATE)              AS week_start,
+  DATE_TRUNC(DATE(block_timestamp, 'UTC'), WEEK(MONDAY))               AS week_start,
   SUM(taker_order_fee_quote_quantums) / 1e12                           AS gross_fees_usd,
   (SUM(taker_order_fee_quote_quantums)
    + SUM(COALESCE(maker_order_fee_quote_quantums, 0))) / 1e12          AS net_fees_usd
 FROM `numia-data.dydx_mainnet.dydx_match`
 WHERE block_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {LOOKBACK_WEEKS * 7} DAY)
-  AND block_timestamp < TIMESTAMP_TRUNC(CURRENT_TIMESTAMP(), WEEK(MONDAY))
 GROUP BY 1
 ORDER BY 1
 """
@@ -134,8 +136,8 @@ SQL_STAKED_TOKENS = f"""
 -- Only BOND_STATUS_BONDED validators are counted (active set).
 -- Dividing by 1e18 converts adydx → DYDX; then /1e6 gives millions of DYDX.
 SELECT
-  CAST(DATE_TRUNC(TIMESTAMP(snapshot_time), WEEK(MONDAY)) AS DATE)   AS week_start,
-  SUM(CAST(tokens AS NUMERIC) / 1e18) / 1e6                          AS staked_dydx_m
+  DATE_TRUNC(DATE(TIMESTAMP(snapshot_time), 'UTC'), WEEK(MONDAY))   AS week_start,
+  SUM(CAST(tokens AS NUMERIC) / 1e18) / 1e6                         AS staked_dydx_m
 FROM (
   SELECT
     snapshot_time,
@@ -143,7 +145,7 @@ FROM (
     tokens,
     ROW_NUMBER() OVER (
       PARTITION BY
-        DATE_TRUNC(TIMESTAMP(snapshot_time), WEEK(MONDAY)),
+        DATE_TRUNC(DATE(TIMESTAMP(snapshot_time), 'UTC'), WEEK(MONDAY)),
         operator_address
       ORDER BY snapshot_time DESC
     ) AS rn
@@ -216,20 +218,31 @@ def wow_pp(series: list, idx: int = -1) -> float | None:
     except (IndexError, TypeError):
         return None
 
-# ─────────────────────────────────────────────────────────────
-# Main
-# ─────────────────────────────────────────────────────────────
 
 def build_week_spine(lookback_weeks: int) -> list[str]:
-    """Return YYYY-MM-DD strings for the last N *complete* Monday-based weeks."""
+    """Return YYYY-MM-DD strings for the last N *complete* Monday-based weeks.
+
+    The spine is generated purely from the current date so it is never limited
+    by data availability in any upstream table. Each data source aligns to this
+    spine; weeks without data get None (shown as gaps / trend-only in the UI).
+
+    Example (today = Thursday 2026-04-17):
+      current week start = Monday 2026-04-14  ← excluded (partial)
+      latest complete    = Monday 2026-04-07
+      spine[-1]          = '2026-04-07'
+    """
     today = date.today()
-    days_since_monday = today.weekday()
+    days_since_monday = today.weekday()          # Monday=0, Sunday=6
     current_week_monday = today - timedelta(days=days_since_monday)
     latest_complete = current_week_monday - timedelta(weeks=1)
     return [
         (latest_complete - timedelta(weeks=i)).isoformat()
         for i in range(lookback_weeks - 1, -1, -1)
     ]
+
+# ─────────────────────────────────────────────────────────────
+# Main
+# ─────────────────────────────────────────────────────────────
 
 def main() -> None:
     print("─" * 60)
@@ -248,9 +261,9 @@ def main() -> None:
     staked_rows      = run_query(client, SQL_STAKED_TOKENS,     "Staked DYDX")
     stakers_rows     = run_query(client, SQL_ACTIVE_STAKERS,    "Active stakers")
 
-   # Build the canonical week spine from dYdX volume data (Numia — most current source).
-    # total_dex (historical_volumes) has a ~3-week lag so we don't use it as the spine;
-    # it will align to whatever weeks it has data for and be null for recent weeks.
+    # Build the canonical week spine from the current date — independent of any
+    # data source so the time axis always extends to last Monday regardless of
+    # upstream table lag. Data sources with lag will produce nulls for recent weeks.
     spine: list[str] = build_week_spine(LOOKBACK_WEEKS)
     if not dydx_vol_rows and not total_dex_rows:
         print("\n❌ ERROR: both primary queries returned no rows. Check table access and permissions.")
