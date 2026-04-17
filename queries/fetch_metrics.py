@@ -220,22 +220,24 @@ def wow_pp(series: list, idx: int = -1) -> float | None:
 
 
 def build_week_spine(lookback_weeks: int) -> list[str]:
-    """Return YYYY-MM-DD strings for the last N *complete* Monday-based weeks.
+    """Return YYYY-MM-DD strings for the last N Monday-based weeks.
 
     The spine is generated purely from the current date so it is never limited
     by data availability in any upstream table. Each data source aligns to this
     spine; weeks without data get None (shown as gaps / trend-only in the UI).
 
-    Example (today = Thursday 2026-04-17):
-      current week start = Monday 2026-04-14  ← excluded (partial)
-      latest complete    = Monday 2026-04-07
-      spine[-1]          = '2026-04-07'
+    The current (potentially partial) week is included as the final entry so
+    that in-progress data is visible. Sources with a HAVING COUNT = 7 filter
+    (e.g. total_dex_volume) will naturally return null for the current week.
+
+    Example (today = Thursday 2026-04-16):
+      current week start = Monday 2026-04-13  <- included (partial week)
+      spine[-1]          = '2026-04-13'
     """
     today = date.today()
     days_since_monday = today.weekday()          # Monday=0, Sunday=6
     current_week_monday = today - timedelta(days=days_since_monday)
-latest_complete = current_week_monday - timedelta(weeks=1)
-return [
+    return [
         (current_week_monday - timedelta(weeks=i)).isoformat()
         for i in range(lookback_weeks - 1, -1, -1)
     ]
