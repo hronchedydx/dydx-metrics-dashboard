@@ -234,6 +234,7 @@ def build_week_spine(lookback_weeks: int) -> list[str]:
     today = date.today()
     days_since_monday = today.weekday()          # Monday=0, Sunday=6
     current_week_monday = today - timedelta(days=days_since_monday)
+latest_complete = current_week_monday - timedelta(weeks=1)
 return [
         (current_week_monday - timedelta(weeks=i)).isoformat()
         for i in range(lookback_weeks - 1, -1, -1)
