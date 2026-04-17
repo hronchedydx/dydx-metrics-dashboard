@@ -216,24 +216,26 @@ def wow_pp(series: list, idx: int = -1) -> float | None:
 def load_token_holders_csv(csv_path: str, spine: list[str]) -> list[int | None]:
     """Read data/token_holders.csv and align to the week spine.
 
-    Accepts comma- or tab-separated files with a header row.
-    Expected columns (any order):
-      date     — YYYY-MM-DD  OR  M/D/YY  (e.g. 1/1/25)
-      holders  — integer holder count
+    Accepts the SmartStake export format ("title","activeAccounts") as well as
+    a generic format (date, holders). Comma- or tab-separated, quoted or unquoted.
 
-    Daily rows are aggregated to Monday-based weeks by taking the MAX
-    holder count within each week. Missing weeks return None.
+    Supported date formats: YYYY-MM-DD, M/D/YY, M/D/YYYY.
+    Daily rows are aggregated to Monday-based weeks (MAX per week).
+    Missing weeks return None.
     """
     if not os.path.exists(csv_path):
         print(f"  ⚠ token_holders.csv not found at {csv_path} — holders will be null")
         return [None] * len(spine)
 
-    DATE_FMTS = ["%Y-%m-%d", "%m/%d/%y", "%m/%d/%Y"]
+    # Column name candidates: first match wins
+    DATE_COLS    = ["title", "date", "ds", "week"]
+    HOLDER_COLS  = ["activeAccounts", "holders", "holder_count", "count"]
+    DATE_FMTS    = ["%Y-%m-%d", "%m/%d/%y", "%m/%d/%Y"]
 
     def parse_date(s: str) -> date | None:
         for fmt in DATE_FMTS:
             try:
-                return datetime.strptime(s, fmt).date()
+                return datetime.strptime(s.strip(), fmt).date()
             except ValueError:
                 continue
         return None
@@ -241,22 +243,32 @@ def load_token_holders_csv(csv_path: str, spine: list[str]) -> list[int | None]:
     weekly: dict[str, int] = {}
     try:
         with open(csv_path, newline="", encoding="utf-8") as f:
-            # Auto-detect delimiter (comma or tab) from whole sample, not just header
-            sample = f.read(2048); f.seek(0)
+            sample = f.read(4096); f.seek(0)
             delimiter = "\t" if "\t" in sample else ","
             reader = csv.DictReader(f, delimiter=delimiter)
+
+            # Strip any surrounding quotes from header names
+            fields = [k.strip('"').strip() for k in (reader.fieldnames or [])]
+            date_col   = next((c for c in DATE_COLS   if c in fields), None)
+            holder_col = next((c for c in HOLDER_COLS if c in fields), None)
+
+            if not date_col or not holder_col:
+                print(f"  ⚠ token_holders.csv: unrecognised columns {fields} — holders will be null")
+                return [None] * len(spine)
+
             for row in reader:
-                raw_date = row.get("date", "").strip()
-                raw_val  = row.get("holders", "").strip().replace(",", "")
+                # Strip quotes that some exporters leave on values
+                raw_date = row.get(date_col, "").strip().strip('"')
+                raw_val  = row.get(holder_col, "").strip().strip('"').replace(",", "")
                 if not raw_date or not raw_val:
                     continue
                 d = parse_date(raw_date)
                 if d is None:
                     continue
-                # Snap to Monday of the week
                 monday = (d - timedelta(days=d.weekday())).isoformat()
                 val = int(float(raw_val))
                 weekly[monday] = max(weekly.get(monday, 0), val)
+
     except Exception as exc:
         print(f"  ⚠ Could not read token_holders.csv: {exc}")
         return [None] * len(spine)
