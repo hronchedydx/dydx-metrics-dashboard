@@ -216,9 +216,10 @@ def wow_pp(series: list, idx: int = -1) -> float | None:
 def load_token_holders_csv(csv_path: str, spine: list[str]) -> list[int | None]:
     """Read data/token_holders.csv and align to the week spine.
 
-    Expected CSV columns (any order, header required):
-      date        — YYYY-MM-DD (daily or weekly snapshots)
-      holders     — integer holder count
+    Accepts comma- or tab-separated files with a header row.
+    Expected columns (any order):
+      date     — YYYY-MM-DD  OR  M/D/YY  (e.g. 1/1/25)
+      holders  — integer holder count
 
     Daily rows are aggregated to Monday-based weeks by taking the MAX
     holder count within each week. Missing weeks return None.
@@ -227,18 +228,30 @@ def load_token_holders_csv(csv_path: str, spine: list[str]) -> list[int | None]:
         print(f"  ⚠ token_holders.csv not found at {csv_path} — holders will be null")
         return [None] * len(spine)
 
+    DATE_FMTS = ["%Y-%m-%d", "%m/%d/%y", "%m/%d/%Y"]
+
+    def parse_date(s: str) -> date | None:
+        for fmt in DATE_FMTS:
+            try:
+                return datetime.strptime(s, fmt).date()
+            except ValueError:
+                continue
+        return None
+
     weekly: dict[str, int] = {}
     try:
         with open(csv_path, newline="", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
+            # Auto-detect delimiter (comma or tab)
+            sample = f.read(2048); f.seek(0)
+            delimiter = "\t" if "\t" in sample.split("\n")[0] else ","
+            reader = csv.DictReader(f, delimiter=delimiter)
             for row in reader:
                 raw_date = row.get("date", "").strip()
                 raw_val  = row.get("holders", "").strip().replace(",", "")
                 if not raw_date or not raw_val:
                     continue
-                try:
-                    d = date.fromisoformat(raw_date)
-                except ValueError:
+                d = parse_date(raw_date)
+                if d is None:
                     continue
                 # Snap to Monday of the week
                 monday = (d - timedelta(days=d.weekday())).isoformat()
@@ -248,7 +261,7 @@ def load_token_holders_csv(csv_path: str, spine: list[str]) -> list[int | None]:
         print(f"  ⚠ Could not read token_holders.csv: {exc}")
         return [None] * len(spine)
 
-    print(f"  → Token holders (CSV) … {len(weekly)} weeks")
+    print(f"  → Token holders (CSV) … {len(weekly)} weeks loaded")
     return [weekly.get(w) for w in spine]
 
 
