@@ -242,7 +242,7 @@ def load_token_holders_csv(csv_path: str, spine: list[str]) -> list[int | None]:
 
     weekly: dict[str, int] = {}
     try:
-        with open(csv_path, newline="", encoding="utf-8") as f:
+        with open(csv_path, newline="", encoding="utf-8-sig") as f:
             sample = f.read(4096); f.seek(0)
             delimiter = "\t" if "\t" in sample else ","
             reader = csv.DictReader(f, delimiter=delimiter)
