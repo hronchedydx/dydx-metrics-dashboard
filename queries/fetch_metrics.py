@@ -67,14 +67,16 @@ def get_client() -> bigquery.Client:
 SQL_TOTAL_DEX_VOLUME = f"""
 -- Total perpetual DEX market weekly volume (all venues combined)
 -- Source: cs-host-1e442ec0baa34148b93f88.historical_volumes.daily_perps_volume
--- Excludes the current (partial) week so we don't get a misleading low number.
+-- HAVING COUNT = 7 ensures only fully-populated weeks are included — this handles
+-- both the current partial week and any lagged weeks where the source table is
+-- not yet fully loaded (e.g. the last 1-2 rows may have incomplete daily data).
 SELECT
   DATE_TRUNC(date, WEEK(MONDAY))   AS week_start,
   SUM(total_volume) / 1e9          AS total_dex_volume_bn
 FROM `cs-host-1e442ec0baa34148b93f88.historical_volumes.daily_perps_volume`
 WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL {LOOKBACK_WEEKS} WEEK)
-  AND date < DATE_TRUNC(CURRENT_DATE(), WEEK(MONDAY))
 GROUP BY 1
+HAVING COUNT(DISTINCT date) = 7
 ORDER BY 1
 """
 
