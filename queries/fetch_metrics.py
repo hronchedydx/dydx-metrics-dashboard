@@ -29,6 +29,7 @@ DEPENDENCIES
   pip install google-cloud-bigquery db-dtypes
 """
 
+import csv
 import json
 import os
 import sys
@@ -115,19 +116,11 @@ GROUP BY 1
 ORDER BY 1
 """
 
-SQL_TOKEN_HOLDERS = f"""
--- Weekly DYDX token holder count
--- Source: dydx-ce5e3.numia.token_holder_snapshots
--- ⚠ Update table/column names below if your holder data lives in a different table.
---   If this query fails, holders will be omitted from the JSON (null values).
-SELECT
-  DATE_TRUNC(snapshot_date, WEEK(MONDAY))   AS week_start,
-  MAX(holder_count)                         AS token_holders
-FROM `dydx-ce5e3.numia.token_holder_snapshots`
-WHERE snapshot_date >= DATE_SUB(CURRENT_DATE(), INTERVAL {LOOKBACK_WEEKS} WEEK)
-GROUP BY 1
-ORDER BY 1
-"""
+# Token holders are sourced from a manually maintained CSV file.
+# dydx-ce5e3.numia.token_holder_snapshots returns 403 (no service-account access).
+# SmartStake data is downloaded manually and committed to data/token_holders.csv.
+# Format: date (YYYY-MM-DD), holders (integer) — one row per day or per week.
+TOKEN_HOLDERS_CSV = os.path.join(os.path.dirname(__file__), "..", "data", "token_holders.csv")
 
 SQL_STAKED_TOKENS = f"""
 -- Total DYDX tokens staked per week (latest snapshot per bonded validator per week).
@@ -220,6 +213,45 @@ def wow_pp(series: list, idx: int = -1) -> float | None:
         return None
 
 
+def load_token_holders_csv(csv_path: str, spine: list[str]) -> list[int | None]:
+    """Read data/token_holders.csv and align to the week spine.
+
+    Expected CSV columns (any order, header required):
+      date        — YYYY-MM-DD (daily or weekly snapshots)
+      holders     — integer holder count
+
+    Daily rows are aggregated to Monday-based weeks by taking the MAX
+    holder count within each week. Missing weeks return None.
+    """
+    if not os.path.exists(csv_path):
+        print(f"  ⚠ token_holders.csv not found at {csv_path} — holders will be null")
+        return [None] * len(spine)
+
+    weekly: dict[str, int] = {}
+    try:
+        with open(csv_path, newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                raw_date = row.get("date", "").strip()
+                raw_val  = row.get("holders", "").strip().replace(",", "")
+                if not raw_date or not raw_val:
+                    continue
+                try:
+                    d = date.fromisoformat(raw_date)
+                except ValueError:
+                    continue
+                # Snap to Monday of the week
+                monday = (d - timedelta(days=d.weekday())).isoformat()
+                val = int(float(raw_val))
+                weekly[monday] = max(weekly.get(monday, 0), val)
+    except Exception as exc:
+        print(f"  ⚠ Could not read token_holders.csv: {exc}")
+        return [None] * len(spine)
+
+    print(f"  → Token holders (CSV) … {len(weekly)} weeks")
+    return [weekly.get(w) for w in spine]
+
+
 def build_week_spine(lookback_weeks: int) -> list[str]:
     """Return YYYY-MM-DD strings for the last N Monday-based weeks.
 
@@ -260,7 +292,6 @@ def main() -> None:
     total_dex_rows   = run_query(client, SQL_TOTAL_DEX_VOLUME,  "Total DEX volume")
     dydx_vol_rows    = run_query(client, SQL_DYDX_VOLUME,       "dYdX volume")
     fees_rows        = run_query(client, SQL_FEES,              "Trading fees")
-    holders_rows     = run_query(client, SQL_TOKEN_HOLDERS,     "Token holders")
     staked_rows      = run_query(client, SQL_STAKED_TOKENS,     "Staked DYDX")
     stakers_rows     = run_query(client, SQL_ACTIVE_STAKERS,    "Active stakers")
 
@@ -279,7 +310,7 @@ def main() -> None:
     dydx_vol       = align(dydx_vol_rows,   "week_start", "dydx_volume_bn",      spine)
     gross_fees     = align(fees_rows,        "week_start", "gross_fees_usd",      spine)
     net_fees       = align(fees_rows,        "week_start", "net_fees_usd",        spine)
-    token_holders  = align(holders_rows,    "week_start", "token_holders",       spine)
+    token_holders  = load_token_holders_csv(TOKEN_HOLDERS_CSV, spine)
     staked_dydx    = align(staked_rows,     "week_start", "staked_dydx_m",       spine)
     active_stakers = align(stakers_rows,    "week_start", "active_stakers",      spine)
 
