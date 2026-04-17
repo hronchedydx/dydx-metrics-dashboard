@@ -237,10 +237,12 @@ def main() -> None:
     staked_rows      = run_query(client, SQL_STAKED_TOKENS,     "Staked DYDX")
     stakers_rows     = run_query(client, SQL_ACTIVE_STAKERS,    "Active stakers")
 
-    # Build the canonical week spine from the total DEX data (most complete source)
-    spine: list[str] = [str(r["week_start"]) for r in total_dex_rows]
+   # Build the canonical week spine from dYdX volume data (Numia — most current source).
+    # total_dex (historical_volumes) has a ~3-week lag so we don't use it as the spine;
+    # it will align to whatever weeks it has data for and be null for recent weeks.
+    spine: list[str] = [str(r["week_start"]) for r in dydx_vol_rows]
     if not spine:
-        print("\n❌ ERROR: total DEX query returned no rows. Check table access and permissions.")
+        print("\n❌ ERROR: dYdX volume query returned no rows. Check table access and permissions.")
         sys.exit(1)
 
     print(f"\nWeek range: {spine[0]} → {spine[-1]}")
