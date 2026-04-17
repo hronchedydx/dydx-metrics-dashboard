@@ -159,14 +159,15 @@ ORDER BY 1
 """
 
 SQL_ACTIVE_STAKERS = f"""
--- Weekly count of unique active DYDX stakers (wallets with tokens > 0)
+-- Weekly count of unique active DYDX stakers (addresses with staked_balance > 0).
+-- Uses the last daily snapshot of each week to avoid inflating counts mid-week.
+-- Column names (ds, address, staked_balance) confirmed from Mode query.
 -- Source: dydx-ce5e3.numia.staked_snapshots_with_last_timestamp
 SELECT
-  DATE_TRUNC(snapshot_date, WEEK(MONDAY))   AS week_start,
-  COUNT(DISTINCT delegator_address)         AS active_stakers
+  DATE_TRUNC(DATE(ds, 'UTC'), WEEK(MONDAY))                                   AS week_start,
+  COUNT(DISTINCT CASE WHEN staked_balance > 0 THEN address ELSE NULL END)     AS active_stakers
 FROM `dydx-ce5e3.numia.staked_snapshots_with_last_timestamp`
-WHERE snapshot_date >= DATE_SUB(CURRENT_DATE(), INTERVAL {LOOKBACK_WEEKS} WEEK)
-  AND tokens > 0
+WHERE ds >= DATE_SUB(CURRENT_DATE(), INTERVAL {LOOKBACK_WEEKS} WEEK)
 GROUP BY 1
 ORDER BY 1
 """
