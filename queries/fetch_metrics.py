@@ -231,7 +231,7 @@ def build_week_spine(lookback_weeks: int) -> list[str]:
     (e.g. total_dex_volume) will naturally return null for the current week.
 
     Example (today = Thursday 2026-04-16):
-      current week start = Monday 2026-04-13  <- included (partial week)
+      current week start = Monday 2026-04-13  ← included (partial week)
       spine[-1]          = '2026-04-13'
     """
     today = date.today()
