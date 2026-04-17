@@ -32,7 +32,7 @@ DEPENDENCIES
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from google.cloud import bigquery
 from google.oauth2 import service_account
@@ -220,6 +220,17 @@ def wow_pp(series: list, idx: int = -1) -> float | None:
 # Main
 # ─────────────────────────────────────────────────────────────
 
+def build_week_spine(lookback_weeks: int) -> list[str]:
+    """Return YYYY-MM-DD strings for the last N *complete* Monday-based weeks."""
+    today = date.today()
+    days_since_monday = today.weekday()
+    current_week_monday = today - timedelta(days=days_since_monday)
+    latest_complete = current_week_monday - timedelta(weeks=1)
+    return [
+        (latest_complete - timedelta(weeks=i)).isoformat()
+        for i in range(lookback_weeks - 1, -1, -1)
+    ]
+
 def main() -> None:
     print("─" * 60)
     print("dYdX Metrics — BigQuery Fetch")
@@ -240,9 +251,9 @@ def main() -> None:
    # Build the canonical week spine from dYdX volume data (Numia — most current source).
     # total_dex (historical_volumes) has a ~3-week lag so we don't use it as the spine;
     # it will align to whatever weeks it has data for and be null for recent weeks.
-    spine: list[str] = [str(r["week_start"]) for r in dydx_vol_rows]
-    if not spine:
-        print("\n❌ ERROR: dYdX volume query returned no rows. Check table access and permissions.")
+    spine: list[str] = build_week_spine(LOOKBACK_WEEKS)
+    if not dydx_vol_rows and not total_dex_rows:
+        print("\n❌ ERROR: both primary queries returned no rows. Check table access and permissions.")
         sys.exit(1)
 
     print(f"\nWeek range: {spine[0]} → {spine[-1]}")
