@@ -895,19 +895,14 @@ async function boot() {
     document.getElementById('hdrMeta').textContent =
       `BQ data: ${fmtGen.format(gen)} · ${llama ? 'DeFiLlama: live' : 'DeFiLlama: offline'}`;
 
-    // 8. KPI cards
-    // Use live DeFiLlama for market share if available, else BQ kpi
-    const liveShare = share.at(-1);
-    const liveDydx  = dydxVol.at(-1);
-    const liveTotal = totalDex.at(-1);
-
-    setV('kShare', liveShare != null ? `${liveShare.toFixed(2)}%` : '—');
+    // 8. KPI cards — read from kpi object (last complete week, K=-2 in Python)
+    setV('kShare', kpi.market_share_pct != null ? `${(+kpi.market_share_pct).toFixed(2)}%` : '—');
     setChg('kShareChg', kpi.market_share_wow_pp, 'pp');
 
-    setV('kVol', liveDydx != null ? `$${liveDydx.toFixed(2)}B` : '—');
+    setV('kVol', kpi.dydx_volume_bn != null ? `$${(+kpi.dydx_volume_bn).toFixed(2)}B` : '—');
     setChg('kVolChg', kpi.dydx_volume_wow_pct);
 
-    setV('kMkt', liveTotal != null ? `$${liveTotal.toFixed(1)}B` : '—');
+    setV('kMkt', kpi.total_dex_volume_bn != null ? `$${(+kpi.total_dex_volume_bn).toFixed(1)}B` : '—');
     setChg('kMktChg', kpi.total_dex_wow_pct);
 
     setV('kGross', kpi.gross_fees_usd != null ? `$${kpi.gross_fees_usd.toFixed(2)}M` : '—');
