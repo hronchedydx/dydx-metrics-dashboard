@@ -128,6 +128,13 @@ TOKEN_HOLDERS_CSV = os.path.join(os.path.dirname(__file__), "..", "data", "token
 # New rows are added manually each Monday after the previous week closes.
 MARKET_SHARE_CSV = os.path.join(os.path.dirname(__file__), "..", "data", "market_share.csv")
 
+# Active stakers data is sourced from a manually maintained CSV file.
+# The BigQuery source (numia.staked_snapshots_with_last_timestamp) requires access
+# that is not yet granted to the service account. Fill values from the Mode dashboard.
+# Format: week_end (Sunday M/D/YY), active_stakers (integer count)
+# New rows are added manually each Monday after the previous week closes.
+ACTIVE_STAKERS_CSV = os.path.join(os.path.dirname(__file__), "..", "data", "active_stakers.csv")
+
 SQL_STAKED_TOKENS = f"""
 -- Total DYDX tokens staked per week (latest snapshot per bonded validator per week).
 -- Source: numia-data.dydx_mainnet.dydx_validators
@@ -355,6 +362,54 @@ def load_market_share_csv(csv_path: str, spine: list[str]) -> dict[str, list[flo
     }
 
 
+def load_active_stakers_csv(csv_path: str, spine: list[str]) -> list[int | None]:
+    """Read data/active_stakers.csv and align to the week spine.
+
+    Format: week_end (Sunday M/D/YY or YYYY-MM-DD), active_stakers (integer).
+    Week-end (Sunday) dates are converted to Monday by subtracting 6 days to align with spine.
+    Missing or empty values return None.
+    """
+    if not os.path.exists(csv_path):
+        print(f"  ⚠ active_stakers.csv not found at {csv_path} — active stakers will be null")
+        return [None] * len(spine)
+
+    DATE_FMTS = ["%Y-%m-%d", "%m/%d/%y", "%m/%d/%Y"]
+
+    def parse_sunday(s: str):
+        for fmt in DATE_FMTS:
+            try:
+                return datetime.strptime(s.strip(), fmt).date()
+            except ValueError:
+                continue
+        return None
+
+    rows: dict[str, int] = {}
+    try:
+        with open(csv_path, newline="", encoding="utf-8-sig") as f:
+            reader = csv.DictReader(f)
+            reader.fieldnames = [k.strip() for k in (reader.fieldnames or [])]
+            for row in reader:
+                sunday_str = row.get("week_end", "").strip()
+                val_str    = row.get("active_stakers", "").strip().replace(",", "")
+                if not sunday_str or not val_str:
+                    continue
+                d = parse_sunday(sunday_str)
+                if d is None:
+                    continue
+                # Convert Sunday → Monday (spine uses Monday week-starts)
+                monday = (d - timedelta(days=6)).isoformat()
+                try:
+                    rows[monday] = int(float(val_str))
+                except ValueError:
+                    continue
+    except Exception as exc:
+        print(f"  ⚠ Could not read active_stakers.csv: {exc}")
+        return [None] * len(spine)
+
+    print(f"  → Active stakers (CSV) … {len(rows)} weeks loaded")
+    return [rows.get(w) for w in spine]
+
+
 def build_week_spine(lookback_weeks: int) -> list[str]:
     """Return YYYY-MM-DD strings for the last N Monday-based weeks.
 
@@ -394,7 +449,9 @@ def main() -> None:
     print("Running queries:")
     fees_rows        = run_query(client, SQL_FEES,           "Trading fees")
     staked_rows      = run_query(client, SQL_STAKED_TOKENS,  "Staked DYDX")
-    stakers_rows     = run_query(client, SQL_ACTIVE_STAKERS, "Active stakers")
+    # Active stakers are loaded from a manually maintained CSV while BigQuery access
+    # to numia.staked_snapshots_with_last_timestamp is being arranged.
+    # stakers_rows = run_query(client, SQL_ACTIVE_STAKERS, "Active stakers")
 
     # Build the canonical week spine from the current date — independent of any
     # data source so the time axis always extends to last Monday regardless of
@@ -412,7 +469,7 @@ def main() -> None:
     net_fees       = align(fees_rows,    "week_start", "net_fees_usd",    spine)
     token_holders  = load_token_holders_csv(TOKEN_HOLDERS_CSV, spine)
     staked_dydx    = align(staked_rows,  "week_start", "staked_dydx_m",  spine)
-    active_stakers = align(stakers_rows, "week_start", "active_stakers", spine)
+    active_stakers = load_active_stakers_csv(ACTIVE_STAKERS_CSV, spine)
 
     # Derived series — other DEX volume = total minus dYdX
     other_dex_vol = [
