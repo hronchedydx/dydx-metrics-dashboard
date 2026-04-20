@@ -143,7 +143,7 @@
     /* ── KPI STRIP ───────────────────────────── */
     .kpi-row {
       display: grid;
-      grid-template-columns: repeat(7, 1fr);
+      grid-template-columns: repeat(8, 1fr);
       gap: 8px;
       margin-bottom: 20px;
     }
@@ -380,6 +380,11 @@
         <div class="kpi-lbl">Staked DYDX</div>
         <div class="kpi-val" id="kStaked">—</div>
         <div class="kpi-chg" id="kStakedChg">—</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">Active Stakers</div>
+        <div class="kpi-val" id="kActive">—</div>
+        <div class="kpi-chg" id="kActiveChg">—</div>
       </div>
     </div>
 
@@ -901,6 +906,9 @@ async function boot() {
 
     setV('kStaked', kpi.staked_dydx_m != null ? `${(+kpi.staked_dydx_m).toFixed(1)}M` : '—');
     setChg('kStakedChg', kpi.staked_dydx_wow_pct);
+
+    setV('kActive', kpi.active_stakers != null ? (+kpi.active_stakers).toLocaleString() : '—');
+    setChg('kActiveChg', kpi.active_stakers_wow_pct);
 
     // 9. Build charts
     buildMktChart(lbls, totalDex, dydxVol, otherDex, share);
