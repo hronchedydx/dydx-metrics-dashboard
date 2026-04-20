@@ -152,14 +152,15 @@ ORDER BY 1
 """
 
 SQL_ACTIVE_STAKERS = f"""
--- Weekly count of unique active DYDX stakers (addresses with staked_balance > 0).
--- Column names (ds, address, staked_balance) confirmed from Mode query.
--- Using numia-data.dydx_mainnet project (service account has access there).
--- dydx-ce5e3.numia version of this table returns 403 Access Denied.
+-- Weekly count of unique active DYDX stakers.
+-- Mirrors the Mode query (dydx-ce5e3.numia.staked_snapshots_with_last_timestamp).
+-- ds is a DATE column, no timezone conversion needed.
 SELECT
-  DATE_TRUNC(DATE(ds, 'UTC'), WEEK(MONDAY))                                   AS week_start,
-  COUNT(DISTINCT CASE WHEN staked_balance > 0 THEN address ELSE NULL END)     AS active_stakers
-FROM `numia-data.dydx_mainnet.staked_snapshots_with_last_timestamp`
+  DATE_TRUNC(ds, WEEK(MONDAY))                                                    AS week_start,
+  COUNT(DISTINCT CASE WHEN staked_balance > 0        THEN address ELSE NULL END)  AS active_stakers,
+  COUNT(DISTINCT CASE WHEN liquid_staked_balance > 0 THEN address ELSE NULL END)  AS liquid_stakers,
+  COUNT(DISTINCT CASE WHEN fe_staked_balance > 0     THEN address ELSE NULL END)  AS fe_stakers
+FROM `dydx-ce5e3.numia.staked_snapshots_with_last_timestamp`
 WHERE ds >= DATE_SUB(CURRENT_DATE(), INTERVAL {LOOKBACK_WEEKS} WEEK)
 GROUP BY 1
 ORDER BY 1
