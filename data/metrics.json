@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-20T10:52:17.897387+00:00",
+  "generated_at": "2026-04-20T11:12:30.927063+00:00",
   "weeks": [
     "2025-04-28",
     "2025-05-05",
@@ -161,7 +161,7 @@
       0.815156,
       0.944059,
       1.271028,
-      0.022562
+      0.023815
     ],
     "other_dex_volume_bn": [
       54.9822,
@@ -323,7 +323,7 @@
       0.150819,
       0.082066,
       0.099524,
-      0.001574
+      0.001719
     ],
     "net_fees_usd": [
       0.178103,
@@ -377,7 +377,7 @@
       0.099851,
       0.060315,
       0.070581,
-      0.001382
+      0.00151
     ],
     "token_holders": [
       61221,
@@ -543,21 +543,21 @@
     ]
   },
   "kpi": {
-    "week": "2026-04-20",
-    "dydx_volume_bn": 0.022562,
-    "dydx_volume_wow_pct": -98.22,
+    "week": "2026-04-13",
+    "dydx_volume_bn": 1.271028,
+    "dydx_volume_wow_pct": 34.63,
     "total_dex_volume_bn": null,
     "total_dex_wow_pct": null,
     "market_share_pct": null,
     "market_share_wow_pp": null,
-    "gross_fees_usd": 0.001574,
-    "gross_fees_wow_pct": -98.42,
-    "net_fees_usd": 0.001382,
-    "net_fees_wow_pct": -98.04,
-    "token_holders": 93854,
-    "token_holders_wow_pct": -0.02,
-    "staked_dydx_m": null,
-    "staked_dydx_wow_pct": null,
+    "gross_fees_usd": 0.099524,
+    "gross_fees_wow_pct": 21.27,
+    "net_fees_usd": 0.070581,
+    "net_fees_wow_pct": 17.02,
+    "token_holders": 93872,
+    "token_holders_wow_pct": -0.03,
+    "staked_dydx_m": 230.625671,
+    "staked_dydx_wow_pct": 2.4,
     "active_stakers": null,
     "active_stakers_wow_pct": null
   }
