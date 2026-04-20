@@ -338,21 +338,6 @@
 <!-- ════════════════════ DASHBOARD -->
 <div id="dash" style="display:none">
 
-  <!-- Data source banner -->
-  <div class="src-banner">
-    <div class="src-item">
-      <div class="src-dot live"></div>
-      <span><strong>DeFiLlama</strong> — total perp DEX market (live, fetched on load)</span>
-    </div>
-    <div class="src-item">
-      <div class="src-dot weekly"></div>
-      <span><strong>BigQuery / Numia</strong> — dYdX volume, fees, staking (refreshed weekly via GitHub Actions)</span>
-    </div>
-    <div class="src-item">
-      <div class="src-dot" id="llamaDot" style="background:var(--muted2)"></div>
-      <span id="llamaStatus">DeFiLlama: pending</span>
-    </div>
-  </div>
 
   <main class="main">
 
@@ -491,10 +476,7 @@
   <footer class="footer">
     <span>dYdX Foundation · Performance Metrics Dashboard</span>
     <div class="footer-pills">
-      <span class="fpill">DeFiLlama (live)</span>
-      <span class="fpill">Numia BigQuery</span>
       <span class="fpill">Refreshed weekly via GitHub Actions</span>
-      <a href="https://app.mode.com/dydx_eng/reports/00ae1dcf3650" target="_blank">Original Mode report →</a>
     </div>
   </footer>
 
@@ -895,8 +877,7 @@ async function boot() {
     const fmtGen = new Intl.DateTimeFormat('en-US', {
       month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC'
     });
-    document.getElementById('hdrMeta').textContent =
-      `BQ data: ${fmtGen.format(gen)} · ${llama ? 'DeFiLlama: live' : 'DeFiLlama: offline'}`;
+    document.getElementById('hdrMeta').textContent = `Updated ${fmtGen.format(gen)}`;
 
     // 8. KPI cards — read from kpi object (last complete week, K=-2 in Python)
     // Show the Sunday end-date of the KPI week (Monday + 6 days)
