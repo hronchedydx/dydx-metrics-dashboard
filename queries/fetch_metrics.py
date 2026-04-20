@@ -160,7 +160,7 @@ SELECT
   COUNT(DISTINCT CASE WHEN staked_balance > 0        THEN address ELSE NULL END)  AS active_stakers,
   COUNT(DISTINCT CASE WHEN liquid_staked_balance > 0 THEN address ELSE NULL END)  AS liquid_stakers,
   COUNT(DISTINCT CASE WHEN fe_staked_balance > 0     THEN address ELSE NULL END)  AS fe_stakers
-FROM `dydx-ce5e3.numia.staked_snapshots_with_last_timestamp`
+FROM `numia-data.numia.staked_snapshots_with_last_timestamp`
 WHERE ds >= DATE_SUB(CURRENT_DATE(), INTERVAL {LOOKBACK_WEEKS} WEEK)
 GROUP BY 1
 ORDER BY 1
