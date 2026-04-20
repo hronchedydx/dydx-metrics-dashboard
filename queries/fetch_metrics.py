@@ -287,7 +287,10 @@ def load_token_holders_csv(csv_path: str, spine: list[str]) -> list[int | None]:
 def load_market_share_csv(csv_path: str, spine: list[str]) -> dict[str, list[float | None]]:
     """Read data/market_share.csv and align to the week spine.
 
-    Format: week_end (Sunday YYYY-MM-DD), total_dex_volume_bn, dydx_volume_bn, market_share_pct.
+    Format: week_end (Sunday), total_dex_volume_bn, dydx_volume_bn, market_share_pct.
+    Accepts date formats: YYYY-MM-DD, M/D/YY, M/D/YYYY.
+    market_share_pct may include a trailing '%' (e.g. '1.24%') — stripped automatically.
+    Column names are stripped of whitespace.
     Week-end (Sunday) dates are converted to Monday by subtracting 6 days to align with spine.
     Returns a dict with keys: total_dex_volume_bn, dydx_volume_bn, market_share_pct.
     """
@@ -301,33 +304,42 @@ def load_market_share_csv(csv_path: str, spine: list[str]) -> dict[str, list[flo
         print(f"  ⚠ market_share.csv not found at {csv_path} — market share data will be null")
         return empty
 
+    DATE_FMTS = ["%Y-%m-%d", "%m/%d/%y", "%m/%d/%Y"]
+
+    def parse_sunday(s: str):
+        for fmt in DATE_FMTS:
+            try:
+                return datetime.strptime(s.strip(), fmt).date()
+            except ValueError:
+                continue
+        return None
+
+    def _float(v: str) -> float | None:
+        v = v.strip().rstrip('%')
+        try:
+            return float(v) if v else None
+        except ValueError:
+            return None
+
     rows: dict[str, dict] = {}
     try:
         with open(csv_path, newline="", encoding="utf-8-sig") as f:
             reader = csv.DictReader(f)
+            # Normalise header names by stripping whitespace
+            reader.fieldnames = [k.strip() for k in (reader.fieldnames or [])]
             for row in reader:
-                sunday = row.get("week_end", "").strip()
-                if not sunday:
+                sunday_str = row.get("week_end", "").strip()
+                if not sunday_str:
+                    continue
+                d = parse_sunday(sunday_str)
+                if d is None:
                     continue
                 # Convert Sunday → Monday (spine uses Monday week-starts)
-                try:
-                    from datetime import date as _date
-                    d = _date.fromisoformat(sunday)
-                    monday = (d - timedelta(days=6)).isoformat()
-                except ValueError:
-                    continue
-
-                def _float(key: str) -> float | None:
-                    v = row.get(key, "").strip()
-                    try:
-                        return float(v) if v else None
-                    except ValueError:
-                        return None
-
+                monday = (d - timedelta(days=6)).isoformat()
                 rows[monday] = {
-                    "total_dex_volume_bn": _float("total_dex_volume_bn"),
-                    "dydx_volume_bn":      _float("dydx_volume_bn"),
-                    "market_share_pct":    _float("market_share_pct"),
+                    "total_dex_volume_bn": _float(row.get("total_dex_volume_bn", "")),
+                    "dydx_volume_bn":      _float(row.get("dydx_volume_bn", "")),
+                    "market_share_pct":    _float(row.get("market_share_pct", "")),
                 }
     except Exception as exc:
         print(f"  ⚠ Could not read market_share.csv: {exc}")
