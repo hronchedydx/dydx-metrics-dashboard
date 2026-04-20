@@ -122,6 +122,12 @@ ORDER BY 1
 # Format: date (YYYY-MM-DD), holders (integer) — one row per day or per week.
 TOKEN_HOLDERS_CSV = os.path.join(os.path.dirname(__file__), "..", "data", "token_holders.csv")
 
+# Market share data (total DEX volume, dYdX volume, market share %) is sourced from
+# a manually maintained CSV file. DeFiLlama's derivatives API is fully paywalled.
+# Format: week_end (Sunday YYYY-MM-DD), total_dex_volume_bn, dydx_volume_bn, market_share_pct
+# New rows are added manually each Monday after the previous week closes.
+MARKET_SHARE_CSV = os.path.join(os.path.dirname(__file__), "..", "data", "market_share.csv")
+
 SQL_STAKED_TOKENS = f"""
 -- Total DYDX tokens staked per week (latest snapshot per bonded validator per week).
 -- Source: numia-data.dydx_mainnet.dydx_validators
@@ -278,6 +284,65 @@ def load_token_holders_csv(csv_path: str, spine: list[str]) -> list[int | None]:
     return [weekly.get(w) for w in spine]
 
 
+def load_market_share_csv(csv_path: str, spine: list[str]) -> dict[str, list[float | None]]:
+    """Read data/market_share.csv and align to the week spine.
+
+    Format: week_end (Sunday YYYY-MM-DD), total_dex_volume_bn, dydx_volume_bn, market_share_pct.
+    Week-end (Sunday) dates are converted to Monday by subtracting 6 days to align with spine.
+    Returns a dict with keys: total_dex_volume_bn, dydx_volume_bn, market_share_pct.
+    """
+    empty = {
+        "total_dex_volume_bn": [None] * len(spine),
+        "dydx_volume_bn":      [None] * len(spine),
+        "market_share_pct":    [None] * len(spine),
+    }
+
+    if not os.path.exists(csv_path):
+        print(f"  ⚠ market_share.csv not found at {csv_path} — market share data will be null")
+        return empty
+
+    rows: dict[str, dict] = {}
+    try:
+        with open(csv_path, newline="", encoding="utf-8-sig") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                sunday = row.get("week_end", "").strip()
+                if not sunday:
+                    continue
+                # Convert Sunday → Monday (spine uses Monday week-starts)
+                try:
+                    from datetime import date as _date
+                    d = _date.fromisoformat(sunday)
+                    monday = (d - timedelta(days=6)).isoformat()
+                except ValueError:
+                    continue
+
+                def _float(key: str) -> float | None:
+                    v = row.get(key, "").strip()
+                    try:
+                        return float(v) if v else None
+                    except ValueError:
+                        return None
+
+                rows[monday] = {
+                    "total_dex_volume_bn": _float("total_dex_volume_bn"),
+                    "dydx_volume_bn":      _float("dydx_volume_bn"),
+                    "market_share_pct":    _float("market_share_pct"),
+                }
+    except Exception as exc:
+        print(f"  ⚠ Could not read market_share.csv: {exc}")
+        return empty
+
+    filled = sum(1 for v in rows.values() if any(x is not None for x in v.values()))
+    print(f"  → Market share (CSV) … {filled} weeks loaded")
+
+    return {
+        "total_dex_volume_bn": [rows.get(w, {}).get("total_dex_volume_bn") for w in spine],
+        "dydx_volume_bn":      [rows.get(w, {}).get("dydx_volume_bn")      for w in spine],
+        "market_share_pct":    [rows.get(w, {}).get("market_share_pct")    for w in spine],
+    }
+
+
 def build_week_spine(lookback_weeks: int) -> list[str]:
     """Return YYYY-MM-DD strings for the last N Monday-based weeks.
 
@@ -315,39 +380,32 @@ def main() -> None:
     print("Connected to BigQuery ✓\n")
 
     print("Running queries:")
-    total_dex_rows   = run_query(client, SQL_TOTAL_DEX_VOLUME,  "Total DEX volume")
-    dydx_vol_rows    = run_query(client, SQL_DYDX_VOLUME,       "dYdX volume")
-    fees_rows        = run_query(client, SQL_FEES,              "Trading fees")
-    staked_rows      = run_query(client, SQL_STAKED_TOKENS,     "Staked DYDX")
-    stakers_rows     = run_query(client, SQL_ACTIVE_STAKERS,    "Active stakers")
+    fees_rows        = run_query(client, SQL_FEES,           "Trading fees")
+    staked_rows      = run_query(client, SQL_STAKED_TOKENS,  "Staked DYDX")
+    stakers_rows     = run_query(client, SQL_ACTIVE_STAKERS, "Active stakers")
 
     # Build the canonical week spine from the current date — independent of any
     # data source so the time axis always extends to last Monday regardless of
     # upstream table lag. Data sources with lag will produce nulls for recent weeks.
     spine: list[str] = build_week_spine(LOOKBACK_WEEKS)
-    if not dydx_vol_rows and not total_dex_rows:
-        print("\n❌ ERROR: both primary queries returned no rows. Check table access and permissions.")
-        sys.exit(1)
 
     print(f"\nWeek range: {spine[0]} → {spine[-1]}")
 
     # Align all series to the spine
-    total_dex_vol  = align(total_dex_rows,  "week_start", "total_dex_volume_bn", spine)
-    dydx_vol       = align(dydx_vol_rows,   "week_start", "dydx_volume_bn",      spine)
-    gross_fees     = align(fees_rows,        "week_start", "gross_fees_usd",      spine)
-    net_fees       = align(fees_rows,        "week_start", "net_fees_usd",        spine)
+    mkt            = load_market_share_csv(MARKET_SHARE_CSV, spine)  # manually maintained CSV
+    total_dex_vol  = mkt["total_dex_volume_bn"]
+    dydx_vol       = mkt["dydx_volume_bn"]
+    market_share_pct = mkt["market_share_pct"]
+    gross_fees     = align(fees_rows,    "week_start", "gross_fees_usd",  spine)
+    net_fees       = align(fees_rows,    "week_start", "net_fees_usd",    spine)
     token_holders  = load_token_holders_csv(TOKEN_HOLDERS_CSV, spine)
-    staked_dydx    = align(staked_rows,     "week_start", "staked_dydx_m",       spine)
-    active_stakers = align(stakers_rows,    "week_start", "active_stakers",      spine)
+    staked_dydx    = align(staked_rows,  "week_start", "staked_dydx_m",  spine)
+    active_stakers = align(stakers_rows, "week_start", "active_stakers", spine)
 
-    # Derived series
-    other_dex_vol  = [
+    # Derived series — other DEX volume = total minus dYdX
+    other_dex_vol = [
         round(t - d, 4) if t is not None and d is not None else None
         for t, d in zip(total_dex_vol, dydx_vol)
-    ]
-    market_share_pct = [
-        round(d / t * 100, 4) if d is not None and t and t > 0 else None
-        for d, t in zip(dydx_vol, total_dex_vol)
     ]
 
     # KPI snapshot — use the last COMPLETE week (spine[-2]), not the current
