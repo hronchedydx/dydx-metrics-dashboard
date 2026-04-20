@@ -349,25 +349,28 @@ def main() -> None:
         for d, t in zip(dydx_vol, total_dex_vol)
     ]
 
-    # KPI latest-week snapshot
+    # KPI snapshot — use the last COMPLETE week (spine[-2]), not the current
+    # partial week (spine[-1]). The chart shows the partial week visually;
+    # the KPI cards should reflect a full 7-day period to avoid misleading drops.
+    K = -2
     kpi = {
-        "week":                    spine[-1],
-        "dydx_volume_bn":          dydx_vol[-1],
-        "dydx_volume_wow_pct":     wow_pct(dydx_vol),
-        "total_dex_volume_bn":     total_dex_vol[-1],
-        "total_dex_wow_pct":       wow_pct(total_dex_vol),
-        "market_share_pct":        market_share_pct[-1],
-        "market_share_wow_pp":     wow_pp(market_share_pct),
-        "gross_fees_usd":          gross_fees[-1],
-        "gross_fees_wow_pct":      wow_pct(gross_fees),
-        "net_fees_usd":            net_fees[-1],
-        "net_fees_wow_pct":        wow_pct(net_fees),
-        "token_holders":           token_holders[-1],
-        "token_holders_wow_pct":   wow_pct(token_holders),
-        "staked_dydx_m":           staked_dydx[-1],
-        "staked_dydx_wow_pct":     wow_pct(staked_dydx),
-        "active_stakers":          active_stakers[-1],
-        "active_stakers_wow_pct":  wow_pct(active_stakers),
+        "week":                    spine[K],
+        "dydx_volume_bn":          dydx_vol[K],
+        "dydx_volume_wow_pct":     wow_pct(dydx_vol,       idx=K),
+        "total_dex_volume_bn":     total_dex_vol[K],
+        "total_dex_wow_pct":       wow_pct(total_dex_vol,  idx=K),
+        "market_share_pct":        market_share_pct[K],
+        "market_share_wow_pp":     wow_pp(market_share_pct, idx=K),
+        "gross_fees_usd":          gross_fees[K],
+        "gross_fees_wow_pct":      wow_pct(gross_fees,     idx=K),
+        "net_fees_usd":            net_fees[K],
+        "net_fees_wow_pct":        wow_pct(net_fees,       idx=K),
+        "token_holders":           token_holders[K],
+        "token_holders_wow_pct":   wow_pct(token_holders,  idx=K),
+        "staked_dydx_m":           staked_dydx[K],
+        "staked_dydx_wow_pct":     wow_pct(staked_dydx,   idx=K),
+        "active_stakers":          active_stakers[K],
+        "active_stakers_wow_pct":  wow_pct(active_stakers, idx=K),
     }
 
     payload = {
