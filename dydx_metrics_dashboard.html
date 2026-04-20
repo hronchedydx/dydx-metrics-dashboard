@@ -357,6 +357,9 @@
   <main class="main">
 
     <!-- ── KPI STRIP ── -->
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px;letter-spacing:.3px;">
+      Week ending <span id="kpiWeekEnd">—</span>
+    </div>
     <div class="kpi-row">
       <div class="kpi">
         <div class="kpi-lbl">dYdX Market Share</div>
@@ -518,11 +521,11 @@ function dailyToWeekly(dataChart) {
   return map;  // Map<"YYYY-MM-DD", volumeInBn>
 }
 
-/** Format a date string "YYYY-MM-DD" as "Apr 14" */
+/** Format a week-start "YYYY-MM-DD" as the week-end Sunday, e.g. "Apr 19" */
 function fmtDate(iso) {
-  return new Date(iso + 'T00:00:00Z').toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', timeZone: 'UTC'
-  });
+  const d = new Date(iso + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + 6);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 }
 
 /** Set a KPI card value */
@@ -896,6 +899,14 @@ async function boot() {
       `BQ data: ${fmtGen.format(gen)} · ${llama ? 'DeFiLlama: live' : 'DeFiLlama: offline'}`;
 
     // 8. KPI cards — read from kpi object (last complete week, K=-2 in Python)
+    // Show the Sunday end-date of the KPI week (Monday + 6 days)
+    if (kpi.week) {
+      const weekEnd = new Date(kpi.week + 'T00:00:00Z');
+      weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
+      document.getElementById('kpiWeekEnd').textContent = new Intl.DateTimeFormat('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC'
+      }).format(weekEnd);
+    }
     setV('kShare', kpi.market_share_pct != null ? `${(+kpi.market_share_pct).toFixed(2)}%` : '—');
     setChg('kShareChg', kpi.market_share_wow_pp, 'pp');
 
