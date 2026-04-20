@@ -811,17 +811,10 @@ async function fetchDefiLlama(spine) {
     const total = dailyToWeekly(overview.totalDataChart ?? []);
     const dydx  = dailyToWeekly(dydxSum.totalDataChart ?? []);
 
-    // Update DeFiLlama status dot
-    document.getElementById('llamaDot').style.background = '#22c55e';
-    document.getElementById('llamaDot').style.boxShadow = '0 0 5px #22c55e';
-    document.getElementById('llamaStatus').textContent = 'DeFiLlama: live ✓';
-
     return { total, dydx };
 
   } catch (err) {
     console.warn('DeFiLlama fetch failed:', err.message);
-    document.getElementById('llamaDot').style.background = '#ef4444';
-    document.getElementById('llamaStatus').textContent = `DeFiLlama: unavailable (${err.message})`;
     return null;
   }
 }
