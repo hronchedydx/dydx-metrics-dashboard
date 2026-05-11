@@ -142,14 +142,20 @@ SQL_STAKED_TOKENS = f"""
 -- Only BOND_STATUS_BONDED validators are counted (active set).
 -- Dividing by 1e18 converts adydx → DYDX; then /1e6 gives millions of DYDX.
 --
--- IMPORTANT: We pick the SINGLE latest snapshot in each week and sum its bonded
--- validators — mirroring the Mode query that groups by snapshot_time. An earlier
--- version used ROW_NUMBER() OVER (PARTITION BY week, operator_address) to pick
--- the latest BONDED snapshot per validator per week, but that double-counts
--- active-set churn: a validator jailed mid-week keeps an early-week BONDED row,
--- AND the validator that replaced them keeps a late-week BONDED row, so both
--- occupants of the same active-set slot land in the same week's sum. That bug
--- inflated the 2026-04-20 week to 237.7M vs. Mintscan's 233.2M.
+-- DESIGN NOTES
+-- 1. We pick the SINGLE latest snapshot_time in each week and sum its bonded
+--    validators — mirroring the Mode query that groups by snapshot_time. An
+--    earlier version used ROW_NUMBER() OVER (PARTITION BY week, operator_address)
+--    to pick the latest BONDED snapshot per validator per week, but that
+--    double-counts active-set churn: a validator jailed mid-week keeps an
+--    early-week BONDED row, AND the validator that replaced them keeps a
+--    late-week BONDED row, so both occupants of the same active-set slot land
+--    in the same week's sum. That bug inflated the 2026-04-20 week to 237.7M
+--    vs. Mintscan's 233.2M.
+-- 2. We dedupe by (snapshot_time, operator_address) before summing because as
+--    of May 2026 the Numia pipeline began materialising ~5 identical rows per
+--    (validator, snapshot) pair. Without the dedupe, the naive SUM inflated
+--    the 2026-05-10 snapshot 5x to 1,127.8M vs. the true ~225.6M.
 WITH weekly_latest AS (
   SELECT
     DATE_TRUNC(DATE(TIMESTAMP(snapshot_time), 'UTC'), WEEK(MONDAY)) AS week_start,
@@ -157,14 +163,24 @@ WITH weekly_latest AS (
   FROM `numia-data.dydx_mainnet.dydx_validators`
   WHERE snapshot_time >= DATETIME_SUB(CURRENT_DATETIME(), INTERVAL {LOOKBACK_WEEKS * 7} DAY)
   GROUP BY 1
+),
+latest_validators AS (
+  -- One row per (week_start, operator_address) at that week's latest snapshot.
+  -- MAX(tokens) collapses any duplicate rows the source table now emits.
+  SELECT
+    w.week_start,
+    v.operator_address,
+    MAX(CAST(v.tokens AS NUMERIC)) AS tokens
+  FROM `numia-data.dydx_mainnet.dydx_validators` v
+  JOIN weekly_latest w
+    ON v.snapshot_time = w.max_snapshot
+  WHERE v.status = 'BOND_STATUS_BONDED'
+  GROUP BY 1, 2
 )
 SELECT
-  w.week_start,
-  SUM(CAST(v.tokens AS NUMERIC) / 1e18) / 1e6 AS staked_dydx_m
-FROM `numia-data.dydx_mainnet.dydx_validators` v
-JOIN weekly_latest w
-  ON v.snapshot_time = w.max_snapshot
-WHERE v.status = 'BOND_STATUS_BONDED'
+  week_start,
+  SUM(tokens / 1e18) / 1e6 AS staked_dydx_m
+FROM latest_validators
 GROUP BY 1
 ORDER BY 1
 """
