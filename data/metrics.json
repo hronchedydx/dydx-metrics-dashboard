@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-11T10:34:30.222523+00:00",
+  "generated_at": "2026-05-11T11:03:21.220452+00:00",
   "weeks": [
     "2025-05-19",
     "2025-05-26",
@@ -106,7 +106,7 @@
       137.88,
       119.56,
       113.82,
-      null,
+      142.975,
       null
     ],
     "dydx_volume_bn": [
@@ -160,7 +160,7 @@
       1.26,
       0.73,
       0.74,
-      null,
+      1.133,
       null
     ],
     "other_dex_volume_bn": [
@@ -214,7 +214,7 @@
       136.62,
       118.83,
       113.08,
-      null,
+      141.842,
       null
     ],
     "market_share_pct": [
@@ -268,7 +268,7 @@
       0.92,
       0.61,
       0.65,
-      null,
+      0.79,
       null
     ],
     "gross_fees_usd": [
@@ -323,7 +323,7 @@
       0.061049,
       0.086294,
       0.149655,
-      0.005188
+      0.005269
     ],
     "net_fees_usd": [
       0.316999,
@@ -377,7 +377,7 @@
       0.045781,
       0.060878,
       0.099986,
-      0.00356
+      0.003633
     ],
     "token_holders": [
       62660,
@@ -431,7 +431,7 @@
       93866,
       93861,
       93863,
-      null
+      93839
     ],
     "staked_dydx_m": [
       270.321745,
@@ -538,18 +538,18 @@
       32904,
       32853,
       32837,
-      null,
+      32744,
       null
     ]
   },
   "kpi": {
     "week": "2026-05-04",
-    "dydx_volume_bn": null,
-    "dydx_volume_wow_pct": null,
-    "total_dex_volume_bn": null,
-    "total_dex_wow_pct": null,
-    "market_share_pct": null,
-    "market_share_wow_pp": null,
+    "dydx_volume_bn": 1.133,
+    "dydx_volume_wow_pct": 53.11,
+    "total_dex_volume_bn": 142.975,
+    "total_dex_wow_pct": 25.62,
+    "market_share_pct": 0.79,
+    "market_share_wow_pp": 0.14,
     "gross_fees_usd": 0.149655,
     "gross_fees_wow_pct": 73.42,
     "net_fees_usd": 0.099986,
@@ -558,7 +558,7 @@
     "token_holders_wow_pct": 0.0,
     "staked_dydx_m": 1127.798701,
     "staked_dydx_wow_pct": 379.82,
-    "active_stakers": null,
-    "active_stakers_wow_pct": null
+    "active_stakers": 32744,
+    "active_stakers_wow_pct": -0.28
   }
 }
