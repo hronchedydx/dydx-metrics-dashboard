@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-11T11:03:21.220452+00:00",
+  "generated_at": "2026-05-11T11:25:37.628495+00:00",
   "weeks": [
     "2025-05-19",
     "2025-05-26",
@@ -484,7 +484,7 @@
       230.625671,
       233.168198,
       235.047665,
-      1127.798701,
+      225.55974,
       null
     ],
     "active_stakers": [
@@ -556,8 +556,8 @@
     "net_fees_wow_pct": 64.24,
     "token_holders": 93863,
     "token_holders_wow_pct": 0.0,
-    "staked_dydx_m": 1127.798701,
-    "staked_dydx_wow_pct": 379.82,
+    "staked_dydx_m": 225.55974,
+    "staked_dydx_wow_pct": -4.04,
     "active_stakers": 32744,
     "active_stakers_wow_pct": -0.28
   }
