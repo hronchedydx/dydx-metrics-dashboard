@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-01T12:33:23.660834+00:00",
+  "generated_at": "2026-06-01T15:02:27.500511+00:00",
   "weeks": [
     "2025-06-09",
     "2025-06-16",
@@ -104,9 +104,9 @@
       119.56,
       113.82,
       142.975,
-      null,
-      null,
-      null,
+      138.69,
+      148.963,
+      128.773,
       null
     ],
     "dydx_volume_bn": [
@@ -158,9 +158,9 @@
       0.73,
       0.74,
       1.133,
-      null,
-      null,
-      null,
+      0.93326,
+      0.51827,
+      0.37759,
       null
     ],
     "other_dex_volume_bn": [
@@ -212,9 +212,9 @@
       118.83,
       113.08,
       141.842,
-      null,
-      null,
-      null,
+      137.7567,
+      148.4447,
+      128.3954,
       null
     ],
     "market_share_pct": [
@@ -266,9 +266,9 @@
       0.61,
       0.65,
       0.79,
-      null,
-      null,
-      null,
+      0.67,
+      0.35,
+      0.29,
       null
     ],
     "gross_fees_usd": [
@@ -323,7 +323,7 @@
       0.111762,
       0.050583,
       0.026297,
-      0.000722
+      0.001428
     ],
     "net_fees_usd": [
       0.276032,
@@ -377,7 +377,7 @@
       0.07586,
       0.038545,
       0.021695,
-      0.000635
+      0.001213
     ],
     "token_holders": [
       63621,
@@ -428,10 +428,10 @@
       93866,
       93861,
       93863,
-      93839,
-      null,
-      null,
-      null
+      93901,
+      93941,
+      93993,
+      94001
     ],
     "staked_dydx_m": [
       267.949258,
@@ -485,7 +485,7 @@
       225.530837,
       226.445691,
       228.430746,
-      null
+      228.439584
     ],
     "active_stakers": [
       17375,
@@ -536,29 +536,29 @@
       32853,
       32837,
       32744,
-      null,
-      null,
-      null,
+      32724,
+      32688,
+      32657,
       null
     ]
   },
   "kpi": {
     "week": "2026-05-25",
-    "dydx_volume_bn": null,
-    "dydx_volume_wow_pct": null,
-    "total_dex_volume_bn": null,
-    "total_dex_wow_pct": null,
-    "market_share_pct": null,
-    "market_share_wow_pp": null,
+    "dydx_volume_bn": 0.37759,
+    "dydx_volume_wow_pct": -27.14,
+    "total_dex_volume_bn": 128.773,
+    "total_dex_wow_pct": -13.55,
+    "market_share_pct": 0.29,
+    "market_share_wow_pp": -0.06,
     "gross_fees_usd": 0.026297,
     "gross_fees_wow_pct": -48.01,
     "net_fees_usd": 0.021695,
     "net_fees_wow_pct": -43.72,
-    "token_holders": null,
-    "token_holders_wow_pct": null,
+    "token_holders": 93993,
+    "token_holders_wow_pct": 0.06,
     "staked_dydx_m": 228.430746,
     "staked_dydx_wow_pct": 0.88,
-    "active_stakers": null,
-    "active_stakers_wow_pct": null
+    "active_stakers": 32657,
+    "active_stakers_wow_pct": -0.09
   }
 }
