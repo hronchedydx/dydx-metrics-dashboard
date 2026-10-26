@@ -1,7 +1,6 @@
 {
-  "generated_at": "2026-10-19T14:16:30.487060+00:00",
+  "generated_at": "2026-10-26T13:48:17.024513+00:00",
   "weeks": [
-    "2025-10-27",
     "2025-11-03",
     "2025-11-10",
     "2025-11-17",
@@ -52,11 +51,11 @@
     "2026-09-28",
     "2026-10-05",
     "2026-10-12",
-    "2026-10-19"
+    "2026-10-19",
+    "2026-10-26"
   ],
   "series": {
     "total_dex_volume_bn": [
-      250.95,
       341.97,
       323.41,
       329.92,
@@ -107,10 +106,10 @@
       null,
       null,
       null,
+      null,
       null
     ],
     "dydx_volume_bn": [
-      1.73,
       1.76,
       3.93,
       4.28,
@@ -161,10 +160,10 @@
       null,
       null,
       null,
+      null,
       null
     ],
     "other_dex_volume_bn": [
-      249.22,
       340.21,
       319.48,
       325.64,
@@ -215,10 +214,10 @@
       null,
       null,
       null,
+      null,
       null
     ],
     "market_share_pct": [
-      0.69,
       0.51,
       1.22,
       1.3,
@@ -269,10 +268,10 @@
       null,
       null,
       null,
+      null,
       null
     ],
     "gross_fees_usd": [
-      0.538928,
       0.422459,
       0.258791,
       0.411146,
@@ -323,10 +322,10 @@
       0.088558,
       0.067928,
       0.077669,
-      0.007329
+      0.071997,
+      0.003924
     ],
     "net_fees_usd": [
-      0.367661,
       0.285982,
       0.175089,
       0.286387,
@@ -377,10 +376,10 @@
       0.066535,
       0.050229,
       0.054788,
-      0.005032
+      0.054088,
+      0.003181
     ],
     "token_holders": [
-      90639,
       90844,
       92126,
       92199,
@@ -431,10 +430,10 @@
       null,
       null,
       null,
+      null,
       null
     ],
     "staked_dydx_m": [
-      246.95773,
       246.481874,
       250.767337,
       241.053669,
@@ -485,10 +484,10 @@
       275.452137,
       286.070407,
       286.999052,
-      null
+      307.117027,
+      298.262053
     ],
     "active_stakers": [
-      33067,
       33411,
       33649,
       33740,
@@ -539,25 +538,26 @@
       null,
       null,
       null,
+      null,
       null
     ]
   },
   "kpi": {
-    "week": "2026-10-12",
+    "week": "2026-10-19",
     "dydx_volume_bn": null,
     "dydx_volume_wow_pct": null,
     "total_dex_volume_bn": null,
     "total_dex_wow_pct": null,
     "market_share_pct": null,
     "market_share_wow_pp": null,
-    "gross_fees_usd": 0.077669,
-    "gross_fees_wow_pct": 14.34,
-    "net_fees_usd": 0.054788,
-    "net_fees_wow_pct": 9.08,
+    "gross_fees_usd": 0.071997,
+    "gross_fees_wow_pct": -7.3,
+    "net_fees_usd": 0.054088,
+    "net_fees_wow_pct": -1.28,
     "token_holders": null,
     "token_holders_wow_pct": null,
-    "staked_dydx_m": 286.999052,
-    "staked_dydx_wow_pct": 0.32,
+    "staked_dydx_m": 307.117027,
+    "staked_dydx_wow_pct": 7.01,
     "active_stakers": null,
     "active_stakers_wow_pct": null
   }
